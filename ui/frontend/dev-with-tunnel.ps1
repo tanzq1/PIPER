@@ -22,6 +22,14 @@ $localQueryWriter = Resolve-Path "$PSScriptRoot/../backend/services/query_writer
 $remoteQueryWriter = "$remoteProjectRoot/ui/backend/services/query_writer.py"
 $localCoreDatasetLoader = Resolve-Path "$PSScriptRoot/../../utils/dataset_loader.py"
 $remoteCoreDatasetLoader = "$remoteProjectRoot/utils/dataset_loader.py"
+$localMainConfig = Resolve-Path "$PSScriptRoot/../../config/main_config.py"
+$remoteMainConfig = "$remoteProjectRoot/config/main_config.py"
+$localThreadBlock = Resolve-Path "$PSScriptRoot/../../core/thread_block.py"
+$remoteThreadBlock = "$remoteProjectRoot/core/thread_block.py"
+$localMooOptimizer = Resolve-Path "$PSScriptRoot/../../optimization/moo_dop_optimizer.py"
+$remoteMooOptimizer = "$remoteProjectRoot/optimization/moo_dop_optimizer.py"
+$localPdgContext = Resolve-Path "$PSScriptRoot/../../pdg_moo/context.py"
+$remotePdgContext = "$remoteProjectRoot/pdg_moo/context.py"
 $backend = $null
 $tunnel = $null
 
@@ -145,6 +153,18 @@ scp "$localQueryWriter" "${sshHost}:${remoteQueryWriter}"
 
 Write-Host "Syncing core dataset loader to ${sshHost}:${remoteCoreDatasetLoader}"
 scp "$localCoreDatasetLoader" "${sshHost}:${remoteCoreDatasetLoader}"
+
+Write-Host "Syncing main config to ${sshHost}:${remoteMainConfig}"
+scp "$localMainConfig" "${sshHost}:${remoteMainConfig}"
+
+Write-Host "Syncing thread block to ${sshHost}:${remoteThreadBlock}"
+scp "$localThreadBlock" "${sshHost}:${remoteThreadBlock}"
+
+Write-Host "Syncing MOO optimizer to ${sshHost}:${remoteMooOptimizer}"
+scp "$localMooOptimizer" "${sshHost}:${remoteMooOptimizer}"
+
+Write-Host "Syncing PDG context to ${sshHost}:${remotePdgContext}"
+scp "$localPdgContext" "${sshHost}:${remotePdgContext}"
 
 Write-Host "Syncing backend runner to ${sshHost}:${remoteGaussRunner}"
 scp "$localGaussRunner" "${sshHost}:${remoteGaussRunner}"

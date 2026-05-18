@@ -73,6 +73,11 @@ class Settings:
         return int(self._raw.get("dop_cap", 0) or 0)
 
     @property
+    def dop_sets(self) -> list[int]:
+        raw = self._raw.get("dop_sets") or []
+        return [int(v) for v in raw if int(v) > 0]
+
+    @property
     def optimize_defaults(self) -> Dict[str, Any]:
         return dict(self._raw.get("optimize_defaults", {}))
 

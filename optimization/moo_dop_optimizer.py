@@ -12,6 +12,14 @@ from dataclasses import dataclass
 from functools import lru_cache
 import math
 
+from config.main_config import sorted_dop_sets, min_parallel_dop, max_parallel_dop
+
+
+def _fallback_candidate_dops():
+    cds = sorted_dop_sets()
+    return cds if cds else [2, 4, 8]
+
+
 try:
     from pymoo.algorithms.moo.nsga2 import NSGA2
     from pymoo.core.problem import Problem
@@ -199,7 +207,7 @@ def compute_marginal_gain_dop(tb: ThreadBlockInfo,
     Uses the exec-time curve on even DOPs within the candidate range.
     Optimized: can use exec_time_cache to avoid repeated computation.
     """
-    candidate_dops = sorted(tb.candidate_dops) if tb.candidate_dops else [8, 16, 32, 64]
+    candidate_dops = sorted(tb.candidate_dops) if tb.candidate_dops else _fallback_candidate_dops()
     min_dop = min(candidate_dops)
     max_dop = max(candidate_dops)
     # Use sparse grid for speed: sample every 4 DOPs instead of every 2
@@ -234,17 +242,17 @@ def compute_throughput_match_dop(parent_tb: ThreadBlockInfo,
     """
     if not children:
         # No downstream dependency; default to mid-range or current best
-        cds = parent_tb.candidate_dops if parent_tb.candidate_dops else [8, 16, 32, 64]
+        cds = parent_tb.candidate_dops if parent_tb.candidate_dops else _fallback_candidate_dops()
         return _ensure_even_dop(int(np.median(cds)), min(cds), max(cds))
     
-    parent_candidates = sorted(parent_tb.candidate_dops) if parent_tb.candidate_dops else [8, 16, 32, 64]
+    parent_candidates = sorted(parent_tb.candidate_dops) if parent_tb.candidate_dops else _fallback_candidate_dops()
     pmin, pmax = min(parent_candidates), max(parent_candidates)
     pgrid = [d for d in range(pmin, pmax + 1) if d % 2 == 0] or parent_candidates
     
     # Precompute child's reference upload time at child's mid-range DOP
     child_refs = []
     for ct in children:
-        cds = sorted(ct.candidate_dops) if ct.candidate_dops else [8, 16, 32, 64]
+        cds = sorted(ct.candidate_dops) if ct.candidate_dops else _fallback_candidate_dops()
         cmin, cmax = min(cds), max(cds)
         cref = _ensure_even_dop(int((cmin + cmax) / 2), cmin, cmax)
         c_exec = compute_exec_time_from_params(ct.pred_params, cref, ct.is_parallel, ct.base_exec_time)
@@ -279,7 +287,7 @@ def compute_stage_dop_range(tb: ThreadBlockInfo,
     low = min(d_marg, d_match)
     high = max(d_marg, d_match)
     # Ensure within candidate min/max
-    cds = sorted(tb.candidate_dops) if tb.candidate_dops else [8, 16, 32, 64]
+    cds = sorted(tb.candidate_dops) if tb.candidate_dops else _fallback_candidate_dops()
     cmin, cmax = min(cds), max(cds)
     low = max(low, cmin)
     high = min(high, cmax)
@@ -323,7 +331,7 @@ def compute_child_match_dop(child_tb: ThreadBlockInfo, target_parent_time: float
     Given a parent's execution time target, find child's DOP that best matches its upload time to target.
     Optimized: can use exec_time_cache to avoid repeated computation.
     """
-    cds = sorted(child_tb.candidate_dops) if child_tb.candidate_dops else [8, 16, 32, 64]
+    cds = sorted(child_tb.candidate_dops) if child_tb.candidate_dops else _fallback_candidate_dops()
     cmin, cmax = min(cds), max(cds)
     # Use sparse grid for speed: sample every 4 DOPs instead of every 2
     grid = [d for d in range(cmin, cmax + 1, 4) if d % 2 == 0]
@@ -390,7 +398,7 @@ class DependentSampling(Sampling):
                 tb = problem.tb_map[tid]
                 # Determine feasible interval for this stage
                 if tb.parent_thread_id is None or tb.parent_thread_id not in dop_config:
-                    cds = sorted(tb.candidate_dops) if tb.candidate_dops else [8, 16, 32, 64]
+                    cds = sorted(tb.candidate_dops) if tb.candidate_dops else _fallback_candidate_dops()
                     low, high = min(cds), max(cds)
                 else:
                     parent_tb = problem.tb_map[tb.parent_thread_id]
@@ -407,7 +415,7 @@ class DependentSampling(Sampling):
                             parent_exec = compute_exec_time_from_params(parent_tb.pred_params, parent_dop, parent_tb.is_parallel, parent_tb.base_exec_time)
                         d_marg = compute_marginal_gain_dop(tb, rel_improve_threshold=self.rel_improve_threshold, exec_time_cache=exec_time_cache)
                         d_match_child = compute_child_match_dop(tb, parent_exec, exec_time_cache=exec_time_cache)
-                        cds = sorted(tb.candidate_dops) if tb.candidate_dops else [8, 16, 32, 64]
+                        cds = sorted(tb.candidate_dops) if tb.candidate_dops else _fallback_candidate_dops()
                         low = max(min(d_marg, d_match_child), min(cds))
                         high = min(max(d_marg, d_match_child), max(cds))
                         low = _ensure_even_dop(low, min(cds), max(cds))
@@ -468,7 +476,7 @@ class DependentRepair(Repair):
                 j = id_to_index[tid]
                 val = int(X[i, j])
                 if tb.parent_thread_id is None or tb.parent_thread_id not in dop_config:
-                    cds = sorted(tb.candidate_dops) if tb.candidate_dops else [8, 16, 32, 64]
+                    cds = sorted(tb.candidate_dops) if tb.candidate_dops else _fallback_candidate_dops()
                     fixed = _ensure_even_dop(val, min(cds), max(cds))
                 else:
                     parent_tb = problem.tb_map[tb.parent_thread_id]
@@ -485,7 +493,7 @@ class DependentRepair(Repair):
                             parent_exec = compute_exec_time_from_params(parent_tb.pred_params, parent_dop, parent_tb.is_parallel, parent_tb.base_exec_time)
                         d_marg = compute_marginal_gain_dop(tb, rel_improve_threshold=self.rel_improve_threshold, exec_time_cache=exec_time_cache)
                         d_match_child = compute_child_match_dop(tb, parent_exec, exec_time_cache=exec_time_cache)
-                        cds = sorted(tb.candidate_dops) if tb.candidate_dops else [8, 16, 32, 64]
+                        cds = sorted(tb.candidate_dops) if tb.candidate_dops else _fallback_candidate_dops()
                         low = max(min(d_marg, d_match_child), min(cds))
                         high = min(max(d_marg, d_match_child), max(cds))
                         low = _ensure_even_dop(low, min(cds), max(cds))
@@ -535,8 +543,8 @@ class ThreadBlockDOPProblem(Problem):
                     min_dop = min(tb.candidate_dops)
                     max_dop = max(tb.candidate_dops)
                 else:
-                    min_dop = 8
-                    max_dop = 64
+                    min_dop = min_parallel_dop()
+                    max_dop = max_parallel_dop()
                 xl.append(min_dop)
                 xu.append(max_dop)
             
@@ -574,8 +582,8 @@ class ThreadBlockDOPProblem(Problem):
                     self.min_dops[tb.thread_id] = min(tb.candidate_dops)
                     self.max_dops[tb.thread_id] = max(tb.candidate_dops)
                 else:
-                    self.min_dops[tb.thread_id] = 8
-                    self.max_dops[tb.thread_id] = 64
+                    self.min_dops[tb.thread_id] = min_parallel_dop()
+                    self.max_dops[tb.thread_id] = max_parallel_dop()
         else:
             self.min_dops = {}
             self.max_dops = {}
@@ -602,7 +610,7 @@ class ThreadBlockDOPProblem(Problem):
         self.exec_time_cache = {}  # {thread_id: {dop: exec_time}}
         for tb in self.thread_blocks:
             self.exec_time_cache[tb.thread_id] = {}
-            candidate_dops = tb.candidate_dops if tb.candidate_dops else [8, 16, 32, 64]
+            candidate_dops = tb.candidate_dops if tb.candidate_dops else _fallback_candidate_dops()
             
             # Pre-compute for all candidate DOPs
             for dop in candidate_dops:
@@ -951,7 +959,7 @@ def optimize_thread_block_dops_with_moo(
             dop = int(best_solution[j])
             
             # Ensure DOP is within bounds and is even
-            min_dop = min(tb_info.candidate_dops) if tb_info.candidate_dops else 8
+            min_dop = min(tb_info.candidate_dops) if tb_info.candidate_dops else min_parallel_dop()
             max_dop = max(tb_info.candidate_dops) if tb_info.candidate_dops else 64
             dop = max(min_dop, min(dop, max_dop))
             
