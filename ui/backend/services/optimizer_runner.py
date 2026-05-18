@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..settings import Settings, get_settings
+from . import preload_cache
 from .task_manager import TaskManager
 
 
@@ -81,6 +82,35 @@ def _resolve_algorithm_paths(settings: Settings, dataset: str, train_mode: str, 
     raise ValueError(f"Unsupported algorithm: {algorithm}")
 
 
+def _per_query_paths(settings: Settings, dataset: str, train_mode: str, algorithm: str,
+                     query_id: int, base_dop: int) -> Tuple[str, str]:
+    """Return (json_path, csv_path) for a per-query optimization payload.
+
+    These files live alongside the full-dataset JSON outputs so that the rest
+    of the pipeline (CSV export, history viewer) can keep using the existing
+    directory layout. The naming uses a ``_query_<id>`` suffix to avoid
+    overwriting the dataset-wide outputs.
+    """
+    _ensure_predictor_on_path(settings)
+    from utils import get_output_paths
+
+    if algorithm == "baseline":
+        paths = get_output_paths(dataset, "dop_aware", train_mode)
+        filename = f"baseline_dop{base_dop}_query_{query_id}.json"
+        json_path = os.path.join(paths["optimization_dir"], filename)
+        return json_path, json_path.replace(".json", ".csv")
+    if algorithm == "pipeline":
+        paths = get_output_paths(dataset, "dop_aware", train_mode)
+        json_path = os.path.join(paths["optimization_dir"], f"pipeline_optimization_query_{query_id}.json")
+        return json_path, json_path.replace(".json", ".csv")
+    if algorithm in {"query_level", "auto_dop", "ppm"}:
+        paths = get_output_paths(dataset, "query_level", train_mode)
+        filename = f"query_level_optimization_{algorithm}_query_{query_id}.json"
+        json_path = os.path.join(paths["optimization_dir"], filename)
+        return json_path, json_path.replace(".json", ".csv")
+    raise ValueError(f"Unsupported algorithm: {algorithm}")
+
+
 def run_optimization(
     *,
     task_manager: TaskManager,
@@ -93,8 +123,11 @@ def run_optimization(
 ) -> Dict[str, Any]:
     """Synchronous worker invoked from a background thread.
 
-    Returns the per-query optimization payload (already saved to disk under
-    `ui/runs/<task_id>/`)."""
+    The expensive preprocessing (test-data CSV load and ONNX session
+    initialization) is cached process-wide so that subsequent requests for the
+    same dataset only run the per-query DOP search. Returns the per-query
+    optimization payload (already saved to disk under ``ui/runs/<task_id>/``).
+    """
 
     settings = get_settings()
     _ensure_predictor_on_path(settings)
@@ -104,45 +137,152 @@ def run_optimization(
     defaults = settings.optimize_defaults
     merged = {**defaults, **{k: v for k, v in params.items() if v is not None}}
     train_mode = merged.get("train_mode", "exact_train")
+    use_estimates = bool(merged.get("use_estimates", False))
+    train_ratio = merged.get("train_ratio")
+    model_dataset = merged.get("model_dataset") or dataset
+    base_dop = int(merged.get("base_dop", 64))
 
     task_manager.append_log(
         task_id,
         f"[optimize] dataset={dataset} query_id={query_id} algorithm={algorithm} train_mode={train_mode}",
     )
 
-    json_path, csv_path = _resolve_algorithm_paths(settings, dataset, train_mode, algorithm)
-
+    per_query_json, per_query_csv = _per_query_paths(
+        settings, dataset, train_mode, algorithm, query_id, base_dop
+    )
     data_signature = _optimization_data_signature(settings, dataset)
-    signature_path = f"{json_path}.ui_data_source"
+    signature_path = f"{per_query_json}.ui_data_source"
     cached_signature = _read_text(signature_path)
-    need_run = force_rerun or not os.path.exists(json_path) or cached_signature != data_signature
+    have_cached = os.path.exists(per_query_json) and cached_signature == data_signature
+    need_run = force_rerun or not have_cached
     task_manager.append_log(
         task_id,
-        f"[optimize] expected json={json_path} exists={os.path.exists(json_path)} "
+        f"[optimize] per_query_json={per_query_json} exists={os.path.exists(per_query_json)} "
         f"force_rerun={force_rerun} data_source_changed={cached_signature != data_signature}",
     )
     task_manager.append_log(task_id, f"[optimize] data_source={data_signature}")
 
+    def _log(msg: str) -> None:
+        task_manager.append_log(task_id, msg)
+
     if need_run:
         with _OPTIMIZE_LOCK:
             with _redirect_stdio(task_manager, task_id):
-                _invoke_optimizer(algorithm, dataset, train_mode, merged)
+                state = preload_cache.get_state(
+                    dataset=dataset,
+                    train_mode=train_mode,
+                    use_estimates=use_estimates,
+                    train_ratio=train_ratio,
+                    model_dataset=model_dataset,
+                    logger=_log,
+                )
+                _invoke_single_query_optimizer(
+                    algorithm=algorithm,
+                    dataset=dataset,
+                    train_mode=train_mode,
+                    query_id=int(query_id),
+                    base_dop=base_dop,
+                    merged=merged,
+                    state=state,
+                    output_json_path=per_query_json,
+                )
     else:
-        task_manager.append_log(task_id, "[optimize] reusing cached optimization output")
+        _log("[optimize] reusing cached per-query optimization output")
 
-    if not os.path.exists(json_path):
-        raise FileNotFoundError(f"Optimization output missing after run: {json_path}")
-    if not os.path.exists(csv_path):
-        # The CSV is exported alongside JSON, but be defensive.
+    if not os.path.exists(per_query_json):
+        raise FileNotFoundError(f"Optimization output missing after run: {per_query_json}")
+    if not os.path.exists(per_query_csv):
         from scripts.optimize import export_optimization_to_csv  # type: ignore
 
-        export_optimization_to_csv(json_path, csv_path)
+        export_optimization_to_csv(per_query_json, per_query_csv)
     _write_text(signature_path, data_signature)
 
-    payload = extract_query_payload(json_path, csv_path, query_id, algorithm, dataset)
+    payload = extract_query_payload(per_query_json, per_query_csv, query_id, algorithm, dataset)
     _persist_run(task_id, settings, payload)
     task_manager.append_log(task_id, "[optimize] done")
     return payload
+
+
+def _invoke_single_query_optimizer(*, algorithm: str, dataset: str, train_mode: str,
+                                   query_id: int, base_dop: int, merged: Dict[str, Any],
+                                   state: "preload_cache.PreloadedState",
+                                   output_json_path: str) -> None:
+    """Dispatch to the right single-query script with the preloaded state."""
+    from scripts.optimize import (  # type: ignore
+        run_baseline_optimization_single_query,
+        run_pipeline_optimization_single_query,
+        run_query_level_optimization_single_query,
+    )
+
+    if algorithm == "baseline":
+        result = run_baseline_optimization_single_query(
+            dataset,
+            train_mode,
+            query_id,
+            base_dop=base_dop,
+            use_estimates=state.use_estimates,
+            model_dataset=state.model_dataset,
+            train_ratio=state.train_ratio,
+            df_plans_all_dops=state.df_plans_all_dops,
+            onnx_manager=state.onnx_manager,
+            output_json_path=output_json_path,
+        )
+        if result is None:
+            raise RuntimeError("run_baseline_optimization_single_query returned failure")
+        return
+
+    if algorithm == "pipeline":
+        result = run_pipeline_optimization_single_query(
+            dataset,
+            train_mode,
+            query_id,
+            base_dop=base_dop,
+            min_improvement_ratio=float(merged.get("min_improvement_ratio", 0.1)),
+            min_reduction_threshold=int(merged.get("min_reduction_threshold", 200)),
+            use_estimates=state.use_estimates,
+            interval_tolerance=float(merged.get("interval_tolerance", 0.3)),
+            use_moo=bool(merged.get("use_moo", True)),
+            use_continuous_dop=bool(merged.get("use_continuous_dop", True)),
+            moo_population_size=int(merged.get("moo_population_size", 30)),
+            moo_generations=int(merged.get("moo_generations", 20)),
+            use_pdg_moo=bool(merged.get("use_pdg_moo", True)),
+            pdg_moo_WL=float(merged.get("pdg_moo_WL", 0.7)),
+            pdg_moo_WC=float(merged.get("pdg_moo_WC", 0.3)),
+            pdg_moo_B=int(merged.get("pdg_moo_B", 20)),
+            pdg_moo_T=int(merged.get("pdg_moo_T", 20)),
+            pdg_moo_K=int(merged.get("pdg_moo_K", 5)),
+            pdg_moo_b=int(merged.get("pdg_moo_b", 4)),
+            pdg_moo_p=int(merged.get("pdg_moo_p", 15)),
+            pdg_moo_lambda_I=float(merged.get("pdg_moo_lambda_I", 0.1)),
+            model_dataset=state.model_dataset,
+            train_ratio=state.train_ratio,
+            df_plans_all_dops=state.df_plans_all_dops,
+            onnx_manager=state.onnx_manager,
+            output_json_path=output_json_path,
+        )
+        if result is None:
+            raise RuntimeError("run_pipeline_optimization_single_query returned failure")
+        return
+
+    if algorithm in {"query_level", "auto_dop", "ppm"}:
+        result = run_query_level_optimization_single_query(
+            dataset,
+            algorithm,
+            train_mode,
+            query_id,
+            base_dop=base_dop,
+            use_estimates=state.use_estimates,
+            model_dataset=state.model_dataset,
+            train_ratio=state.train_ratio,
+            df_plans_all_dops=state.df_plans_all_dops,
+            onnx_manager=state.onnx_manager,
+            output_json_path=output_json_path,
+        )
+        if result is None:
+            raise RuntimeError(f"run_query_level_optimization_single_query({algorithm}) returned failure")
+        return
+
+    raise ValueError(f"Unsupported algorithm: {algorithm}")
 
 
 def _invoke_optimizer(algorithm: str, dataset: str, train_mode: str, merged: Dict[str, Any]) -> None:

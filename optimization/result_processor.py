@@ -38,29 +38,29 @@ def collect_all_nodes_from_tree(root_nodes):
         stack.extend(children)
     return all_nodes
 
-def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
+def build_query_details_payload(query_trees, query_thread_blocks):
     """
-    将优化后的详细查询信息写入 JSON 文件。
-    (逻辑来自原 dop_choosen.py 的同名函数)
+    Build the JSON-ready dict for one or more queries without touching the disk.
+
+    The returned dict has the shape ``{"queries": [<query_info>, ...]}`` and is
+    structurally identical to what ``write_query_details_to_file`` persists.
 
     Args:
-        query_trees (dict): {query_id: [PlanNode list]} (可能需要用于获取所有节点)
-        query_thread_blocks (dict): {query_id: {thread_id: ThreadBlock}}
-        output_file (str): 输出 JSON 文件的路径。
+        query_trees (dict): {query_id: [PlanNode list]}.
+        query_thread_blocks (dict): {query_id: {thread_id: ThreadBlock}}.
+
+    Returns:
+        dict: ``{"queries": [...]}`` payload.
     """
-    print(f"开始将详细查询信息写入 JSON 文件: {output_file}")
     queries_info = []
-    processed_queries = 0
 
-    # 遍历有线程块信息的查询
     for query_id, thread_blocks in query_thread_blocks.items():
-        if not thread_blocks: continue # 跳过没有线程块的查询
+        if not thread_blocks:
+            continue
 
-        query_dict = {"query_id": str(query_id)} # JSON 中通常用字符串 ID
+        query_dict = {"query_id": str(query_id)}
 
-        # 获取该查询的所有节点 (需要从 query_trees 中获取)
-        # 注意：这里假设 query_trees 的键也是 query_id
-        base_nodes = query_trees.get(query_id)
+        base_nodes = query_trees.get(query_id) if query_trees else None
         if not base_nodes:
              print(f"警告: Query {query_id} 在 query_trees 中未找到节点信息，无法计算总时间和内存。")
              all_nodes_in_query = []
@@ -147,11 +147,20 @@ def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
         query_dict["max_dop"] = max_dop_in_query
         query_dict["thread_blocks"] = tb_list
         queries_info.append(query_dict)
-        processed_queries += 1
 
-    output_data = {"queries": queries_info}
+    return {"queries": queries_info}
 
-    # 写入 JSON 文件 (确保目录存在)
+
+def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
+    """
+    Persist the JSON-style optimization payload to ``output_file``.
+
+    Thin wrapper around :func:`build_query_details_payload`.
+    """
+    print(f"开始将详细查询信息写入 JSON 文件: {output_file}")
+    output_data = build_query_details_payload(query_trees, query_thread_blocks)
+    processed_queries = len(output_data.get("queries", []))
+
     try:
         output_dir = os.path.dirname(output_file)
         if output_dir and not os.path.exists(output_dir):
@@ -159,8 +168,6 @@ def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
             print(f"创建输出目录: {output_dir}")
 
         with open(output_file, "w", encoding="utf-8") as f:
-            # 使用 ensure_ascii=False 保留中文字符（如果算子名等包含中文）
-            # 使用 default=str 处理无法序列化的类型（例如 numpy 类型，虽然最好提前转换）
             json.dump(output_data, f, indent=4, ensure_ascii=False, default=str)
         print(f"成功将 {processed_queries} 个查询的详细信息写入到 {output_file}")
 

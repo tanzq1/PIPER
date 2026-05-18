@@ -52,6 +52,41 @@ export const api = {
   getOptimizeStatus: (taskId: string) => jsonRequest<TaskInfo>(`/api/optimize/${taskId}`),
   getOptimizeResult: (taskId: string) =>
     jsonRequest<OptimizeResultPayload>(`/api/optimize/${taskId}/result`),
+  preloadOptimize: (payload: {
+    dataset: string;
+    train_mode?: string;
+    use_estimates?: boolean;
+    train_ratio?: number;
+    model_dataset?: string;
+    force_refresh?: boolean;
+  }) =>
+    jsonRequest<{
+      dataset: string;
+      train_mode: string;
+      use_estimates: boolean;
+      train_ratio: number | null;
+      model_dataset: string;
+      row_count: number;
+      loaded_at: number;
+      data_signature: string;
+      cache_hit: boolean;
+    }>(`/api/optimize/preload`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getPreloadStatus: () =>
+    jsonRequest<{
+      entries: Array<{
+        dataset: string;
+        train_mode: string;
+        use_estimates: boolean;
+        train_ratio: number | null;
+        model_dataset: string;
+        loaded_at: number;
+        row_count: number;
+        data_signature: string;
+      }>;
+    }>(`/api/optimize/preload/status`),
   submitExecute: (payload: Record<string, unknown>) =>
     jsonRequest<{ task_id: string; status: string }>(`/api/execute`, {
       method: 'POST',

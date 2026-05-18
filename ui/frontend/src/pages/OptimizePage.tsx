@@ -35,6 +35,12 @@ export default function OptimizePage() {
   const [trainMode, setTrainMode] = useState('exact_train');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preloading, setPreloading] = useState(false);
+  const [preloadInfo, setPreloadInfo] = useState<{
+    row_count: number;
+    cache_hit: boolean;
+    loaded_at: number;
+  } | null>(null);
   const activeTaskRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -101,6 +107,28 @@ export default function OptimizePage() {
       setError(String(err));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function preload(forceRefresh = false) {
+    if (!dataset) return;
+    setPreloading(true);
+    setError(null);
+    try {
+      const info = await api.preloadOptimize({
+        dataset,
+        train_mode: trainMode,
+        force_refresh: forceRefresh,
+      });
+      setPreloadInfo({
+        row_count: info.row_count,
+        cache_hit: info.cache_hit,
+        loaded_at: info.loaded_at,
+      });
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setPreloading(false);
     }
   }
 
@@ -179,7 +207,14 @@ export default function OptimizePage() {
           />
           强制重跑
         </label>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button
+            disabled={!dataset || preloading}
+            onClick={() => preload(false)}
+            title="提前加载该数据集的特征/ONNX 模型，使后续预测仅运行单查询优化"
+          >
+            {preloading ? '预加载中...' : '预加载数据'}
+          </button>
           <button
             className="primary"
             disabled={!ready || submitting}
@@ -189,6 +224,13 @@ export default function OptimizePage() {
           </button>
         </div>
       </div>
+
+      {preloadInfo && (
+        <StatusBanner kind="info">
+          预加载状态：{preloadInfo.cache_hit ? '命中缓存' : '已加载'}，共 {preloadInfo.row_count}{' '}
+          行 plan_info；后续预测将直接复用该缓存。
+        </StatusBanner>
+      )}
 
       <LogStream
         taskId={optimizeTaskId}

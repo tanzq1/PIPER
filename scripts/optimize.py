@@ -12,7 +12,12 @@ from typing import Dict, Any
 # Add project root directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from optimization.optimizer import run_dop_optimization, run_query_dop_optimization
+from optimization.optimizer import (
+    run_dop_optimization,
+    run_query_dop_optimization,
+    run_dop_optimization_single_query,
+    run_query_dop_optimization_single_query,
+)
 from utils import (
     get_output_paths, get_model_paths, create_dataset_loader, 
     log_experiment_start, log_experiment_end, Timer
@@ -20,6 +25,28 @@ from utils import (
 from config import OPTIMIZATION_ALGORITHMS
 import json
 import csv
+from typing import Optional
+
+
+def _get_or_create_onnx_manager(model_dataset: str, train_mode: str, onnx_manager=None):
+    """Reuse a preloaded ONNX manager when provided, otherwise build a new one."""
+    if onnx_manager is not None:
+        return onnx_manager
+    from core.onnx_manager import ONNXModelManager
+    model_paths = get_model_paths(model_dataset, train_mode, 'pipeline')
+    return ONNXModelManager(
+        no_dop_model_dir=model_paths['non_dop_aware_dir'],
+        dop_model_dir=model_paths['dop_aware_dir'],
+    )
+
+
+def _get_or_load_test_data(dataset: str, use_estimates: bool, train_ratio,
+                           df_plans_all_dops=None):
+    """Reuse a preloaded test dataframe when provided, otherwise load via the loader."""
+    if df_plans_all_dops is not None:
+        return df_plans_all_dops
+    loader = create_dataset_loader(dataset)
+    return loader.load_test_data(use_estimates, train_ratio=train_ratio)
 
 def export_optimization_to_csv(json_path: str, csv_path: str) -> bool:
     """
@@ -471,3 +498,247 @@ def run_query_level_optimization(dataset: str, algorithm: str, train_mode: str,
     except Exception as e:
         print(f"❌ Query-level optimization-{algorithm} error: {e}")
         return False
+
+
+def run_pipeline_optimization_single_query(dataset: str, train_mode: str, query_id: int,
+                                           *,
+                                           base_dop: int = 64,
+                                           min_improvement_ratio: float = 0.2,
+                                           min_reduction_threshold: int = 200,
+                                           use_estimates: bool = False,
+                                           use_moo: bool = False,
+                                           use_continuous_dop: bool = True,
+                                           moo_population_size: int = 30,
+                                           moo_generations: int = 20,
+                                           interval_tolerance: float = 0.3,
+                                           model_dataset: Optional[str] = None,
+                                           use_pdg_moo: bool = False,
+                                           pdg_moo_WL: float = 0.5, pdg_moo_WC: float = 0.5,
+                                           pdg_moo_B: int = 20, pdg_moo_T: int = 20,
+                                           pdg_moo_K: int = 5, pdg_moo_b: int = 4,
+                                           pdg_moo_p: int = 15, pdg_moo_lambda_I: float = 0.1,
+                                           train_ratio: Optional[float] = None,
+                                           df_plans_all_dops=None,
+                                           onnx_manager=None,
+                                           output_json_path: Optional[str] = None):
+    """Single-query variant of :func:`run_pipeline_optimization`.
+
+    Skips the dataset-wide DOP optimization loop. ``df_plans_all_dops`` and
+    ``onnx_manager`` can be passed in to avoid re-loading test CSVs and ONNX
+    models on every call. Returns ``None`` on failure or a dict containing the
+    per-query payload (the JSON-style structure) plus auxiliary timing info.
+    """
+    if model_dataset is None:
+        model_dataset = dataset
+
+    df_plans_all_dops = _get_or_load_test_data(dataset, use_estimates, train_ratio,
+                                              df_plans_all_dops)
+    if df_plans_all_dops is None:
+        print("❌ Failed to load test data")
+        return None
+    onnx_manager = _get_or_create_onnx_manager(model_dataset, train_mode, onnx_manager)
+
+    result = run_dop_optimization_single_query(
+        df_plans_all_dops,
+        onnx_manager,
+        query_id,
+        base_dop=base_dop,
+        use_estimates=use_estimates,
+        output_json_path=output_json_path,
+        min_improvement_ratio=min_improvement_ratio,
+        min_reduction_threshold=min_reduction_threshold,
+        interval_tolerance=interval_tolerance,
+        use_moo=use_moo,
+        use_continuous_dop=use_continuous_dop,
+        moo_population_size=moo_population_size,
+        moo_generations=moo_generations,
+        use_pdg_moo=use_pdg_moo,
+        pdg_moo_WL=pdg_moo_WL,
+        pdg_moo_WC=pdg_moo_WC,
+        pdg_moo_B=pdg_moo_B,
+        pdg_moo_T=pdg_moo_T,
+        pdg_moo_K=pdg_moo_K,
+        pdg_moo_b=pdg_moo_b,
+        pdg_moo_p=pdg_moo_p,
+        pdg_moo_lambda_I=pdg_moo_lambda_I,
+    )
+    return result
+
+
+def run_query_level_optimization_single_query(dataset: str, algorithm: str, train_mode: str,
+                                              query_id: int,
+                                              *,
+                                              base_dop: int = 64,
+                                              use_estimates: bool = False,
+                                              model_dataset: Optional[str] = None,
+                                              train_ratio: Optional[float] = None,
+                                              df_plans_all_dops=None,
+                                              onnx_manager=None,
+                                              output_json_path: Optional[str] = None):
+    """Single-query variant of :func:`run_query_level_optimization`.
+
+    Resolves the same auxiliary inputs (prediction CSV or PPM model directory)
+    as the full pipeline but only optimizes a single ``query_id``.
+    """
+    if model_dataset is None:
+        model_dataset = dataset
+
+    df_plans_all_dops = _get_or_load_test_data(dataset, use_estimates, train_ratio,
+                                              df_plans_all_dops)
+    if df_plans_all_dops is None:
+        print("❌ Failed to load test data")
+        return None
+    onnx_manager = _get_or_create_onnx_manager(model_dataset, train_mode, onnx_manager)
+
+    optimization_kwargs = {}
+    csv_file = None
+
+    if algorithm == 'ppm':
+        ppm_output_paths = get_output_paths(model_dataset, 'ppm', train_mode)
+        ppm_base_dir = os.path.join(ppm_output_paths['model_dir'], 'PPM')
+        ppm_model_dir = None
+        ppm_model_type = None
+        for model_type in ('NN', 'GNN'):
+            candidate = os.path.join(ppm_base_dir, model_type)
+            if os.path.exists(os.path.join(candidate, 'execution_time_model.onnx')):
+                ppm_model_dir = candidate
+                ppm_model_type = model_type
+                break
+        if ppm_model_dir is None:
+            print(f"❌ PPM ONNX model not found under {ppm_base_dir}")
+            return None
+        loader = create_dataset_loader(dataset)
+        test_paths = loader.get_file_paths('test', train_ratio=train_ratio)
+        optimization_kwargs = {
+            'plan_csv': test_paths['plan_info'],
+            'ppm_model_dir': ppm_model_dir,
+            'ppm_model_type': ppm_model_type,
+            'use_estimates': use_estimates,
+        }
+    elif algorithm in ('query_level', 'auto_dop'):
+        query_level_output_paths = get_output_paths(dataset, 'query_level', train_mode)
+        import glob
+        pattern = os.path.join(query_level_output_paths['prediction_dir'],
+                               'query_level_predictions_*.csv')
+        matching_files = glob.glob(pattern)
+        if not matching_files:
+            print(f"❌ Query-level prediction file not found, pattern={pattern}")
+            return None
+        csv_file = matching_files[0]
+
+    result = run_query_dop_optimization_single_query(
+        df_plans_all_dops,
+        onnx_manager,
+        query_id,
+        algorithm,
+        base_dop=base_dop,
+        output_json_path=output_json_path,
+        csv_file=csv_file,
+        **optimization_kwargs,
+    )
+    return result
+
+
+def run_baseline_optimization_single_query(dataset: str, train_mode: str, query_id: int,
+                                           *,
+                                           base_dop: int = 64,
+                                           use_estimates: bool = False,
+                                           model_dataset: Optional[str] = None,
+                                           train_ratio: Optional[float] = None,
+                                           df_plans_all_dops=None,
+                                           onnx_manager=None,
+                                           output_json_path: Optional[str] = None):
+    """Single-query variant of :func:`run_baseline_optimization`.
+
+    Builds the baseline thread-block layout for a single query (all parallel
+    operators pinned to ``base_dop``, root pipeline pinned to DOP=1) and
+    returns it in the same JSON-style payload as the other algorithms.
+    """
+    if model_dataset is None:
+        model_dataset = dataset
+
+    df_plans_all_dops = _get_or_load_test_data(dataset, use_estimates, train_ratio,
+                                              df_plans_all_dops)
+    if df_plans_all_dops is None:
+        print("❌ Failed to load test data")
+        return None
+    onnx_manager = _get_or_create_onnx_manager(model_dataset, train_mode, onnx_manager)
+
+    query_id_int = int(query_id)
+    df_query = df_plans_all_dops[df_plans_all_dops['query_id'].astype(int) == query_id_int]
+    df_base = df_query[df_query['query_dop'] == base_dop].copy()
+    if df_base.empty:
+        print(f"❌ No baseline data for query_id={query_id_int}, base_dop={base_dop}")
+        return None
+
+    from optimization.tree_updater import build_query_trees
+    from optimization.threading_utils import (
+        collect_all_nodes_by_plan_id,
+        assign_thread_ids_by_plan_id,
+        get_root_nodes,
+    )
+
+    query_trees = build_query_trees(df_base, onnx_manager, use_estimates=use_estimates)
+    base_nodes = query_trees.get(query_id_int)
+    if not base_nodes:
+        print(f"❌ Failed to build base tree for query_id={query_id_int}")
+        return None
+
+    root_nodes = get_root_nodes(base_nodes)
+    current_offset = 0
+    for root in root_nodes:
+        assign_thread_ids_by_plan_id(root, thread_id=current_offset)
+        nodes_in_tree = collect_all_nodes_by_plan_id([root])
+        max_tid = max(getattr(node, 'thread_id', 0) for node in nodes_in_tree)
+        current_offset = max_tid + 1
+
+    all_nodes = collect_all_nodes_by_plan_id(root_nodes)
+    root_pipeline_thread_ids = {
+        getattr(node, 'thread_id', 0)
+        for node in all_nodes
+        if node.parent_node is None
+    }
+
+    thread_blocks_dict = {}
+    for node in sorted(all_nodes, key=lambda n: n.plan_id):
+        is_root_pipeline = getattr(node, 'thread_id', 0) in root_pipeline_thread_ids
+        is_gather = 'gather' in node.operator_type.lower()
+        is_parallel = node.is_parallel
+        node_dop = 1 if (is_root_pipeline or is_gather or not is_parallel) else base_dop
+        if node_dop not in thread_blocks_dict:
+            thread_blocks_dict[node_dop] = {
+                'thread_block_id': len(thread_blocks_dict),
+                'optimal_dop': int(node_dop),
+                'predicted_time': None,
+                'operators': [],
+            }
+        thread_blocks_dict[node_dop]['operators'].append({
+            'plan_id': int(node.plan_id),
+            'operator_type': str(node.operator_type),
+            'width': int(node.width),
+            'dop': int(node_dop),
+            'parent_child': int(node.parent_node.plan_id) if node.parent_node else -1,
+            'left_child': int(node.child_plans[0].plan_id) if node.child_plans else -1,
+        })
+
+    payload = {
+        'queries': [{
+            'query_id': str(query_id_int),
+            'total_cpu_time': None,
+            'query_total_threads': sum(tb['optimal_dop'] for tb in thread_blocks_dict.values()),
+            'max_dop': max((tb['optimal_dop'] for tb in thread_blocks_dict.values()), default=1),
+            'thread_blocks': list(thread_blocks_dict.values()),
+        }]
+    }
+
+    if output_json_path:
+        try:
+            output_dir = os.path.dirname(output_json_path)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+            with open(output_json_path, 'w', encoding='utf-8') as fp:
+                json.dump(payload, fp, indent=4, ensure_ascii=False, default=str)
+        except Exception as exc:  # noqa: BLE001
+            print(f"写入单查询 JSON 时出错: {exc}")
+
+    return {'payload': payload}
