@@ -17,7 +17,6 @@ export default function ExecutePage() {
   } = useAppState();
   const [baseDop, setBaseDop] = useState<number>(64);
   const [restartGauss, setRestartGauss] = useState<boolean>(true);
-  const [confirm, setConfirm] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [doneStatus, setDoneStatus] = useState<string>('idle');
@@ -76,11 +75,6 @@ export default function ExecutePage() {
           页面跑出 pipeline_optimization.csv。
         </StatusBanner>
       )}
-      {restartGauss && (
-        <StatusBanner kind="warn">
-          gs_ctl restart 将重启 openGauss 整库，请确认当前没有其他人在使用该实例。
-        </StatusBanner>
-      )}
       {error && <StatusBanner kind="error">{error}</StatusBanner>}
 
       <div className="card">
@@ -112,16 +106,8 @@ export default function ExecutePage() {
             />
             重启 openGauss
           </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={confirm}
-              onChange={(e) => setConfirm(e.target.checked)}
-            />
-            我已确认可以执行
-          </label>
           <div style={{ marginLeft: 'auto' }}>
-            <button className="primary" disabled={!ready || !confirm || submitting} onClick={submit}>
+            <button className="primary" disabled={!ready || submitting} onClick={submit}>
               {submitting ? '提交中...' : executeTaskId ? '重新执行' : '开始执行'}
             </button>
           </div>

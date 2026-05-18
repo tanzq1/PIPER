@@ -65,7 +65,7 @@ def main():
     # Runtime control - set which functions to run (True/False)
     RUN_TRAIN =  False  # Whether to run training
     RUN_INFERENCE = False  # Whether to run inference
-    RUN_OPTIMIZE = False  # Whether to run optimization
+    RUN_OPTIMIZE = True  # Whether to run optimization
     RUN_EVALUATE = False  # Whether to run evaluation
     RUN_COMPARE = False  # Whether to run comparison analysis
     RUN_COMPARE_INFERENCE_METHODS = True  # Whether to run inference method comparison
