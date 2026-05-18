@@ -242,9 +242,21 @@ def _install_dop_sets_override(
 
 
 def _optimization_data_signature(settings: Settings, dataset: str) -> str:
+    from config.main_config import DATASETS, PROJECT_ROOT
+
     source_dir = settings.dataset_data_dirs.get(dataset)
     if not source_dir:
-        source_dir = settings.dataset_data_root or "data_kunpeng"
+        cfg = DATASETS.get(dataset, {})
+        test_subdir = cfg.get("test_dir", "")
+        if settings.dataset_data_root:
+            candidate = (
+                os.path.join(settings.dataset_data_root, test_subdir)
+                if test_subdir
+                else settings.dataset_data_root
+            )
+            source_dir = candidate if os.path.isdir(candidate) else settings.dataset_data_root
+        else:
+            source_dir = os.path.join(PROJECT_ROOT, "data_kunpeng", test_subdir)
     plan_path = os.path.join(source_dir, "plan_info.csv")
     query_path = os.path.join(source_dir, "query_info.csv")
     parts = [f"dataset={dataset}", f"dir={source_dir}", f"dop_sets={settings.dop_sets}"]

@@ -15,10 +15,9 @@ gauss_data_dir: /home/zhy/opengauss/GaussData
 # Where openGauss writes plan_info.csv / query_info.csv after each run.
 data_file_dir: /home/zhy/opengauss/data_file
 
-# Where the UI reads input query/plan CSVs for dataset browsing.
-dataset_data_dirs:
-  tpch: /home/zhy/opengauss/data_file/tpch_10g_output
-  tpcds: /home/zhy/opengauss/data_file/tpcds_10g_output
+# Optional override for plan/query CSV dirs (default: <predictor_root>/data_kunpeng/<test_dir>).
+# dataset_data_dirs:
+#   tpch: /home/zhy/opengauss/tools/new_serverless_predictor/data_kunpeng/tpch_output_22
 
 # Logical database names per dataset (used by gsql -d <db>).
 databases:
