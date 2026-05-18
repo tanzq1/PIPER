@@ -100,8 +100,6 @@ def run_optimization(
     _ensure_predictor_on_path(settings)
     task_manager.mark_started(task_id)
     _install_dataset_source_override(settings)
-    if settings.dop_sets:
-        _install_dop_sets_override(settings, task_manager, task_id)
 
     defaults = settings.optimize_defaults
     merged = {**defaults, **{k: v for k, v in params.items() if v is not None}}
@@ -222,26 +220,6 @@ def _install_dataset_source_override(settings: Settings) -> None:
         os.environ.pop("SERVERLESS_DATASET_DIRS_JSON", None)
 
 
-def _install_dop_sets_override(
-    settings: Settings,
-    task_manager: Optional[TaskManager] = None,
-    task_id: Optional[str] = None,
-) -> None:
-    import config.main_config as mc
-
-    dop_sets = set(settings.dop_sets) if settings.dop_sets else set(mc.DOP_SETS)
-    if settings.dop_cap > 0:
-        dop_sets = {d for d in dop_sets if d <= settings.dop_cap}
-    dop_sets.add(1)
-    mc.DOP_SETS.clear()
-    mc.DOP_SETS.update(dop_sets)
-    if task_manager is not None and task_id is not None:
-        task_manager.append_log(
-            task_id,
-            f"[optimize] dop_sets={sorted(d for d in mc.DOP_SETS if d > 1)}",
-        )
-
-
 def _optimization_data_signature(settings: Settings, dataset: str) -> str:
     from config.main_config import DATASETS, PROJECT_ROOT
 
@@ -261,8 +239,6 @@ def _optimization_data_signature(settings: Settings, dataset: str) -> str:
     plan_path = os.path.join(source_dir, "plan_info.csv")
     query_path = os.path.join(source_dir, "query_info.csv")
     parts = [f"dataset={dataset}", f"dir={source_dir}"]
-    if settings.dop_sets:
-        parts.append(f"dop_sets={settings.dop_sets}")
     for path in (plan_path, query_path):
         try:
             stat = os.stat(path)

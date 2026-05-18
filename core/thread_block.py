@@ -7,7 +7,6 @@ import torch
 # import utils
 # from structure import no_dop_operator_features, no_dop_operators_exec, no_dop_operators_mem, dop_operators_exec, dop_operators_mem, parallel_op
 from .plan_node import PlanNode # 如果需要取消注释
-from config.main_config import min_parallel_dop
 
 class ThreadBlock:
     def __init__(self, thread_id, nodes):
@@ -138,9 +137,8 @@ class ThreadBlock:
                 d_right = d
             else:
                 continue
-        min_dop = min_parallel_dop()
-        if d_right < min_dop:
-            d_right = min_dop
+        if d_right < 8:
+            d_right = 8
 
         # 3. Generate matching intervals for ALL child upload times
         # Now considering DOP mismatch penalties
@@ -190,11 +188,11 @@ class ThreadBlock:
             d_left = min(interval[0] for interval in matching_intervals)
         else:
             # If no child constraints, use a default left boundary
-            d_left = sorted_dops[0] if sorted_dops[0] >= min_dop else min_dop
+            d_left = sorted_dops[0] if sorted_dops[0] >= 8 else 8
 
         # Ensure left boundary is reasonable
-        if d_left < min_dop:
-            d_left = min_dop
+        if d_left < 8:
+            d_left = 8
         
         # 5. Fill all candidates in the interval [d_left, d_right]
         candidates = set()

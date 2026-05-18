@@ -106,23 +106,6 @@ THREAD_COST = 1
 THREAD_MEM = 8194
 DOP_SETS = {8, 16, 32, 64, 96}
 
-
-def sorted_dop_sets():
-    """Return configured parallel DOP candidates in ascending order."""
-    return sorted(DOP_SETS)
-
-
-def min_parallel_dop():
-    """Smallest parallel DOP (>1) in the candidate set."""
-    parallel = [d for d in DOP_SETS if d > 1]
-    return min(parallel) if parallel else 2
-
-
-def max_parallel_dop():
-    """Largest parallel DOP in the candidate set."""
-    parallel = [d for d in DOP_SETS if d > 1]
-    return max(parallel) if parallel else 8
-
 # 特征开关配置
 # Note: This must match the setting used during model training
 # Set to False if models were trained without hash_table_size feature

@@ -6,8 +6,6 @@ Uses core.pdg_builder.convert_stage_dag_to_pdg and optimization.moo_dop_optimize
 import warnings
 from typing import Dict, List, Set, Any, Optional
 
-from config.main_config import sorted_dop_sets
-
 from . import types
 
 
@@ -54,9 +52,7 @@ def _compute_marginal_gain_dop(
 ) -> int:
     """Return DOP where relative improvement becomes small (marginal-effect point)."""
     if not candidate_dops:
-        from config.main_config import min_parallel_dop
-
-        return min_parallel_dop()
+        return 8
     cds = sorted(candidate_dops)
     min_dop, max_dop = min(cds), max(cds)
     grid = [d for d in range(min_dop, max_dop + 1, 4) if d % 2 == 0]
@@ -126,7 +122,7 @@ class PDGContext:
                 self._candidate_dops[tid] = sorted(cand) if isinstance(cand, (set, list)) else sorted(list(cand))
             else:
                 keys = list(getattr(tb, "pred_dop_exec_time", {}).keys())
-                self._candidate_dops[tid] = sorted(keys) if keys else sorted_dop_sets() or [2, 4, 8]
+                self._candidate_dops[tid] = sorted(keys) if keys else [8, 16, 32, 64]
 
     @property
     def top_segment(self):
@@ -153,7 +149,7 @@ class PDGContext:
 
     def candidate_dops(self, stage_id: int) -> List[int]:
         """Ordered list of candidate DOPs for this stage."""
-        return self._candidate_dops.get(stage_id, sorted_dop_sets() or [2, 4, 8])
+        return self._candidate_dops.get(stage_id, [8, 16, 32, 64])
 
     def seg_ratio(self, stage_id: int, seg: Any) -> float:
         """Fraction of stage's nodes in this segment. t_{s,seg} = stage_exec_time(s,d) * seg_ratio(s,seg)."""
