@@ -38,14 +38,11 @@ gsql_extra_opts: ""
 # Cap predicted/operator DOP for small VM execution.
 dop_cap: 24
 
-# Parallel DOP candidates used during optimization (serial operators still use 1).
-dop_sets: [2, 4, 8]
-
 # Default optimization parameters mirroring scripts/main.py defaults.
 optimize_defaults:
   train_mode: exact_train
   use_estimates: false
-  base_dop: 8
+  base_dop: 64
   min_improvement_ratio: 0.1
   min_reduction_threshold: 200
   use_moo: true

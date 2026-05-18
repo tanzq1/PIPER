@@ -100,7 +100,8 @@ def run_optimization(
     _ensure_predictor_on_path(settings)
     task_manager.mark_started(task_id)
     _install_dataset_source_override(settings)
-    _install_dop_sets_override(settings, task_manager, task_id)
+    if settings.dop_sets:
+        _install_dop_sets_override(settings, task_manager, task_id)
 
     defaults = settings.optimize_defaults
     merged = {**defaults, **{k: v for k, v in params.items() if v is not None}}
@@ -259,7 +260,9 @@ def _optimization_data_signature(settings: Settings, dataset: str) -> str:
             source_dir = os.path.join(PROJECT_ROOT, "data_kunpeng", test_subdir)
     plan_path = os.path.join(source_dir, "plan_info.csv")
     query_path = os.path.join(source_dir, "query_info.csv")
-    parts = [f"dataset={dataset}", f"dir={source_dir}", f"dop_sets={settings.dop_sets}"]
+    parts = [f"dataset={dataset}", f"dir={source_dir}"]
+    if settings.dop_sets:
+        parts.append(f"dop_sets={settings.dop_sets}")
     for path in (plan_path, query_path):
         try:
             stat = os.stat(path)
