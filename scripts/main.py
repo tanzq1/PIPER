@@ -63,7 +63,7 @@ def main():
     PDG_MOO_LAMBDA_I = 0.1  # Interference penalty weight I/L
     
     # Runtime control - set which functions to run (True/False)
-    RUN_TRAIN =  False  # Whether to run training
+    RUN_TRAIN =  True  # Whether to run training
     RUN_INFERENCE = False  # Whether to run inference
     RUN_OPTIMIZE = True  # Whether to run optimization
     RUN_EVALUATE = False  # Whether to run evaluation
