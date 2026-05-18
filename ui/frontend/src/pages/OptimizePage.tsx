@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import EChart from '../components/EChart';
@@ -35,6 +35,11 @@ export default function OptimizePage() {
   const [trainMode, setTrainMode] = useState('exact_train');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activeTaskRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeTaskRef.current = optimizeTaskId;
+  }, [optimizeTaskId]);
 
   useEffect(() => {
     if (!config) return;
@@ -47,11 +52,40 @@ export default function OptimizePage() {
 
   const ready = dataset && queryId !== null;
 
+  const resultMatchesSelection =
+    optimizeResult !== null &&
+    optimizeResult.dataset === dataset &&
+    optimizeResult.query_id === queryId;
+
+  const loadResult = useCallback(
+    async (taskId: string) => {
+      if (!dataset || queryId === null) return;
+      if (activeTaskRef.current !== taskId) return;
+      try {
+        const payload = await api.getOptimizeResult(taskId);
+        if (activeTaskRef.current !== taskId) return;
+        if (payload.dataset !== dataset || payload.query_id !== queryId) {
+          setError(
+            `预测结果与当前选择不一致（结果 query_id=${payload.query_id}，当前 query_id=${queryId}）`,
+          );
+          return;
+        }
+        setOptimizeResult(payload);
+        setError(null);
+      } catch (err) {
+        setError(String(err));
+      }
+    },
+    [dataset, queryId, setOptimizeResult],
+  );
+
   async function submit() {
     if (!ready) return;
     setSubmitting(true);
     setError(null);
     setOptimizeResult(null);
+    setOptimizeTaskId(null);
+    activeTaskRef.current = null;
     try {
       const { task_id } = await api.submitOptimize({
         dataset,
@@ -61,6 +95,7 @@ export default function OptimizePage() {
         base_dop: baseDop,
         force_rerun: forceRerun,
       });
+      activeTaskRef.current = task_id;
       setOptimizeTaskId(task_id);
     } catch (err) {
       setError(String(err));
@@ -69,19 +104,10 @@ export default function OptimizePage() {
     }
   }
 
-  async function loadResult() {
-    if (!optimizeTaskId) return;
-    try {
-      const payload = await api.getOptimizeResult(optimizeTaskId);
-      setOptimizeResult(payload);
-    } catch (err) {
-      setError(String(err));
-    }
-  }
-
-  const operatorChartOption = optimizeResult
-    ? buildOperatorDopChart(optimizeResult.operators)
-    : null;
+  const operatorChartOption =
+    resultMatchesSelection && optimizeResult
+      ? buildOperatorDopChart(optimizeResult.operators)
+      : null;
 
   return (
     <div>
@@ -92,7 +118,7 @@ export default function OptimizePage() {
         </div>
         <div>
           <button
-            disabled={!optimizeResult}
+            disabled={!resultMatchesSelection}
             onClick={() => navigate('/execute')}
             className="primary"
           >
@@ -170,7 +196,14 @@ export default function OptimizePage() {
         onError={(err) => setError(err)}
       />
 
-      {optimizeResult && (
+      {optimizeResult && !resultMatchesSelection && (
+        <StatusBanner kind="warn">
+          当前展示的是 query_id={optimizeResult.query_id} 的预测结果，与所选 query_id={queryId}{' '}
+          不一致。请点击「开始预测」重新运行。
+        </StatusBanner>
+      )}
+
+      {resultMatchesSelection && optimizeResult && (
         <>
           <KpiGrid>
             <Kpi

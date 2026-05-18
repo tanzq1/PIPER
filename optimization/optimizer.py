@@ -35,7 +35,8 @@ def _operator_export_dop(node, thread_block_dop: int, root_pipeline_thread_ids: 
     if getattr(node, "thread_id", 0) in root_pipeline_thread_ids:
         return 1
     op_lower = str(getattr(node, "operator_type", "")).lower()
-    if "gather" in op_lower or "redistribute" in op_lower or "broadcast" in op_lower:
+    # Baseline: only GATHER is serial at pipeline boundary; REDISTRIBUTE/BROADCAST use TB DOP.
+    if "gather" in op_lower:
         return 1
     if not getattr(node, "is_parallel", True):
         return 1

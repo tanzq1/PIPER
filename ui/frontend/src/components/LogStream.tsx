@@ -4,7 +4,7 @@ import { api } from '../api/client';
 interface LogStreamProps {
   taskId: string | null;
   onStatusChange?: (status: string) => void;
-  onComplete?: () => void;
+  onComplete?: (taskId: string) => void;
   onError?: (error: string) => void;
   maxHeight?: number;
 }
@@ -42,7 +42,7 @@ export default function LogStream({
     });
     source.addEventListener('done', () => {
       source.close();
-      onComplete?.();
+      onComplete?.(taskId);
     });
     source.addEventListener('close', () => {
       source.close();

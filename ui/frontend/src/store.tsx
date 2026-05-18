@@ -78,13 +78,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setDataset(next);
       setQueryDetail(null);
       setQueryId(null);
+      setOptimizeTaskId(null);
       setOptimizeResult(null);
+      setExecuteTaskId(null);
       setActualResult(null);
     },
     setQueryId: (next) => {
       setQueryId(next);
       setQueryDetail(null);
+      setOptimizeTaskId(null);
       setOptimizeResult(null);
+      setExecuteTaskId(null);
       setActualResult(null);
     },
     queryDetail,
