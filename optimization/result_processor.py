@@ -81,6 +81,12 @@ def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
              # query_dict["query_total_mem"] = int(total_mem) # 保持原始转换
 
 
+        root_pipeline_thread_ids = set()
+        if all_nodes_in_query:
+            from .optimizer import _root_pipeline_thread_ids_from_nodes, _operator_export_dop
+
+            root_pipeline_thread_ids = _root_pipeline_thread_ids_from_nodes(all_nodes_in_query)
+
         # 处理线程块信息
         cpu_time_sum = 0 # Query 级别的 CPU 时间累加
         total_threads_in_query = 0
@@ -92,9 +98,7 @@ def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
 
             tb_info = {"thread_block_id": tb_id}
             optimal_dop = tb.optimal_dop if tb.optimal_dop is not None else default_dop # 使用默认值
-            max_dop_in_query = max(max_dop_in_query, optimal_dop)
-            total_threads_in_query += optimal_dop
-            tb_info["optimal_dop"] = optimal_dop
+            tb_export_dop = optimal_dop
             # 使用 getattr 获取属性，避免 AttributeError
             tb_info["predicted_time"] = getattr(tb, 'pred_time', None)
             # 获取线程块的累加真实时间（可能来自 aggregate_metrics）
@@ -107,10 +111,17 @@ def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
             for node in tb.nodes:
                 if not isinstance(node, PlanNode): continue
 
+                if all_nodes_in_query:
+                    node_dop = _operator_export_dop(node, optimal_dop, root_pipeline_thread_ids)
+                else:
+                    node_dop = optimal_dop
+                tb_export_dop = max(tb_export_dop, node_dop)
+
                 op_info = {
                     "plan_id": node.plan_id,
                     "operator_type": node.operator_type,
                     "width": node.width, # 原始 JSON 包含 width
+                    "dop": int(node_dop),
                     "parent_child": node.parent_node.plan_id if node.parent_node else -1, # 父节点 ID
                     "left_child": node.child_plans[0].plan_id if node.child_plans else -1, # 左子节点 ID (简单假设)
                     # 预测时间 (最优 DOP 下)
@@ -118,9 +129,12 @@ def write_query_details_to_file(query_trees, query_thread_blocks, output_file):
                     # 真实/插值时间 (最优 DOP 下)
                     "real_time": node.true_dop_exec_map.get(optimal_dop)
                 }
-                # (原始代码中对 numpy array 的转换已在别处处理或不需要)
+                # (原始代码中对 numpy array 的转换已在别处处理 or不需要)
                 ops.append(op_info)
 
+            max_dop_in_query = max(max_dop_in_query, tb_export_dop)
+            total_threads_in_query += tb_export_dop
+            tb_info["optimal_dop"] = tb_export_dop
             tb_info["operators"] = ops
             tb_list.append(tb_info)
 

@@ -59,7 +59,7 @@ def export_optimization_to_csv(json_path: str, csv_path: str) -> bool:
                         'plan_id': operator['plan_id'],
                         'operator_type': operator['operator_type'],
                         'width': operator['width'],
-                        'dop': optimal_dop,
+                        'dop': operator.get('dop', optimal_dop),
                         'left_child': operator['left_child'],
                         'parent_child': operator['parent_child']
                     }

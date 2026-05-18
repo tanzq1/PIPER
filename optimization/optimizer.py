@@ -21,6 +21,52 @@ from .result_processor import write_query_details_to_file, update_nodes_with_opt
 # --- 结束导入 ---
 
 
+def _root_pipeline_thread_ids_from_nodes(base_nodes) -> set:
+    """Thread ids of the serial root pipeline (plan nodes with no parent)."""
+    return {
+        getattr(node, "thread_id", 0)
+        for node in base_nodes
+        if getattr(node, "parent_node", None) is None
+    }
+
+
+def _operator_export_dop(node, thread_block_dop: int, root_pipeline_thread_ids: set) -> int:
+    """Per-operator DOP for export / query.txt (matches scripts/optimize baseline)."""
+    if getattr(node, "thread_id", 0) in root_pipeline_thread_ids:
+        return 1
+    op_lower = str(getattr(node, "operator_type", "")).lower()
+    if "gather" in op_lower or "redistribute" in op_lower or "broadcast" in op_lower:
+        return 1
+    if not getattr(node, "is_parallel", True):
+        return 1
+    return max(1, int(thread_block_dop))
+
+
+def _thread_block_must_be_serial(tb, root_pipeline_thread_ids: set) -> bool:
+    if not isinstance(tb, ThreadBlock):
+        return False
+    if tb.thread_id in root_pipeline_thread_ids:
+        return True
+    nodes = [n for n in getattr(tb, "nodes", []) if isinstance(n, PlanNode)]
+    return bool(nodes) and all(not getattr(n, "is_parallel", True) for n in nodes)
+
+
+def _pin_thread_block_to_serial(tb) -> None:
+    tb.optimal_dop = 1
+    tb.candidate_optimal_dops = [1]
+    tb.candidate_dops = {1}
+    if isinstance(getattr(tb, "pred_dop_exec_time", None), dict):
+        tb.pred_time = tb.pred_dop_exec_time.get(1, tb.pred_time)
+
+
+def _enforce_serial_dop_constraints(thread_blocks_for_query, base_nodes) -> None:
+    """Serial thread blocks (root pipeline or all-non-parallel) stay at DOP=1 for optimizers."""
+    root_tids = _root_pipeline_thread_ids_from_nodes(base_nodes)
+    for tb in thread_blocks_for_query.values():
+        if _thread_block_must_be_serial(tb, root_tids):
+            _pin_thread_block_to_serial(tb)
+
+
 def compute_optimal_dops_for_query(thread_blocks_for_query, **kwargs):
     """
     为单个查询的所有线程块计算最优 DOP。
@@ -229,6 +275,7 @@ def run_dop_optimization(df_plans_all_dops, onnx_manager: ONNXModelManager,
             print()
         # 计算每个线程块的候选 DOP（写入 candidate_optimal_dops，不影响 optimal_dop）
         compute_optimal_dops_for_query(thread_blocks_for_query, **kwargs)
+        _enforce_serial_dop_constraints(thread_blocks_for_query, base_nodes)
 
         # Check if we should use PDG-MOO or MOO optimization
         use_pdg_moo = kwargs.get('use_pdg_moo', False)
@@ -347,7 +394,9 @@ def run_dop_optimization(df_plans_all_dops, onnx_manager: ONNXModelManager,
                     min_improvement_ratio=kwargs.get('min_improvement_ratio', 0.2),
                     min_reduction_threshold=kwargs.get('min_reduction_threshold', 200)
                 )
-        
+
+        _enforce_serial_dop_constraints(thread_blocks_for_query, base_nodes)
+
         # 保存最终使用的 DOP 结果
         final_dops = {
             tid: {

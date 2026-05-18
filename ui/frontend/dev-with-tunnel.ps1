@@ -166,6 +166,16 @@ scp "$localMooOptimizer" "${sshHost}:${remoteMooOptimizer}"
 Write-Host "Syncing PDG context to ${sshHost}:${remotePdgContext}"
 scp "$localPdgContext" "${sshHost}:${remotePdgContext}"
 
+$localOptimizerPy = Resolve-Path "$PSScriptRoot/../../optimization/optimizer.py"
+$remoteOptimizerPy = "$remoteProjectRoot/optimization/optimizer.py"
+Write-Host "Syncing optimizer core to ${sshHost}:${remoteOptimizerPy}"
+scp "$localOptimizerPy" "${sshHost}:${remoteOptimizerPy}"
+
+$localResultProcessor = Resolve-Path "$PSScriptRoot/../../optimization/result_processor.py"
+$remoteResultProcessor = "$remoteProjectRoot/optimization/result_processor.py"
+Write-Host "Syncing result processor to ${sshHost}:${remoteResultProcessor}"
+scp "$localResultProcessor" "${sshHost}:${remoteResultProcessor}"
+
 Write-Host "Syncing backend runner to ${sshHost}:${remoteGaussRunner}"
 scp "$localGaussRunner" "${sshHost}:${remoteGaussRunner}"
 

@@ -294,26 +294,30 @@ def extract_query_payload(
             dop = min(dop, dop_cap)
         ops = []
         for op in tb.get("operators", []):
+            op_dop = int(op.get("dop", dop))
+            if dop_cap > 0:
+                op_dop = min(op_dop, dop_cap)
             entry = {
                 "plan_id": int(op["plan_id"]),
                 "operator_type": str(op["operator_type"]),
                 "width": int(op.get("width", 0)),
-                "dop": dop,
+                "dop": op_dop,
                 "parent_child": int(op.get("parent_child", -1)),
                 "left_child": int(op.get("left_child", -1)),
                 "thread_block_id": tb_id,
             }
             ops.append(entry)
             flat_operators.append(entry)
+        tb_display_dop = max((int(o["dop"]) for o in ops), default=dop)
         thread_blocks.append({
             "thread_block_id": tb_id,
-            "optimal_dop": dop,
+            "optimal_dop": tb_display_dop,
             "predicted_time": _safe_float(tb.get("predicted_time")),
             "operators": ops,
         })
     _force_root_pipeline_payload_dop_one(thread_blocks, flat_operators)
     flat_operators.sort(key=lambda x: x["plan_id"])
-    max_dop = _safe_int(target.get("max_dop"))
+    max_dop = max((int(op["dop"]) for op in flat_operators), default=1)
     if dop_cap > 0 and max_dop is not None:
         max_dop = min(max_dop, dop_cap)
 
