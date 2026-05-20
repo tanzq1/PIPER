@@ -6,30 +6,6 @@ $remotePort = 8000
 $sshHost = "node2"
 $remoteProjectRoot = "/home/zhy/opengauss/tools/new_serverless_predictor"
 $remotePython = "/home/zhy/miniconda3/envs/zhy_env/bin/python"
-$localBackendConfig = Resolve-Path "$PSScriptRoot/../backend/config.yaml"
-$remoteBackendConfig = "$remoteProjectRoot/ui/backend/config.yaml"
-$localGaussRunner = Resolve-Path "$PSScriptRoot/../backend/services/gauss_runner.py"
-$remoteGaussRunner = "$remoteProjectRoot/ui/backend/services/gauss_runner.py"
-$localSettings = Resolve-Path "$PSScriptRoot/../backend/settings.py"
-$remoteSettings = "$remoteProjectRoot/ui/backend/settings.py"
-$localDatasetLoader = Resolve-Path "$PSScriptRoot/../backend/services/dataset_loader.py"
-$remoteDatasetLoader = "$remoteProjectRoot/ui/backend/services/dataset_loader.py"
-$localResultsLoader = Resolve-Path "$PSScriptRoot/../backend/services/results_loader.py"
-$remoteResultsLoader = "$remoteProjectRoot/ui/backend/services/results_loader.py"
-$localOptimizerRunner = Resolve-Path "$PSScriptRoot/../backend/services/optimizer_runner.py"
-$remoteOptimizerRunner = "$remoteProjectRoot/ui/backend/services/optimizer_runner.py"
-$localQueryWriter = Resolve-Path "$PSScriptRoot/../backend/services/query_writer.py"
-$remoteQueryWriter = "$remoteProjectRoot/ui/backend/services/query_writer.py"
-$localCoreDatasetLoader = Resolve-Path "$PSScriptRoot/../../utils/dataset_loader.py"
-$remoteCoreDatasetLoader = "$remoteProjectRoot/utils/dataset_loader.py"
-$localMainConfig = Resolve-Path "$PSScriptRoot/../../config/main_config.py"
-$remoteMainConfig = "$remoteProjectRoot/config/main_config.py"
-$localThreadBlock = Resolve-Path "$PSScriptRoot/../../core/thread_block.py"
-$remoteThreadBlock = "$remoteProjectRoot/core/thread_block.py"
-$localMooOptimizer = Resolve-Path "$PSScriptRoot/../../optimization/moo_dop_optimizer.py"
-$remoteMooOptimizer = "$remoteProjectRoot/optimization/moo_dop_optimizer.py"
-$localPdgContext = Resolve-Path "$PSScriptRoot/../../pdg_moo/context.py"
-$remotePdgContext = "$remoteProjectRoot/pdg_moo/context.py"
 $backend = $null
 $tunnel = $null
 
@@ -132,52 +108,6 @@ fi
 '@
 $updateRepoCommand = $updateRepoCommand.Replace("__REMOTE_PROJECT_ROOT__", $remoteProjectRoot)
 Invoke-RemoteBash $updateRepoCommand -TimeoutSeconds 20 -ContinueOnError | Out-Null
-
-Write-Host "Syncing backend config to ${sshHost}:${remoteBackendConfig}"
-scp "$localBackendConfig" "${sshHost}:${remoteBackendConfig}"
-
-Write-Host "Syncing backend settings to ${sshHost}:${remoteSettings}"
-scp "$localSettings" "${sshHost}:${remoteSettings}"
-
-Write-Host "Syncing dataset loader to ${sshHost}:${remoteDatasetLoader}"
-scp "$localDatasetLoader" "${sshHost}:${remoteDatasetLoader}"
-
-Write-Host "Syncing results loader to ${sshHost}:${remoteResultsLoader}"
-scp "$localResultsLoader" "${sshHost}:${remoteResultsLoader}"
-
-Write-Host "Syncing optimizer runner to ${sshHost}:${remoteOptimizerRunner}"
-scp "$localOptimizerRunner" "${sshHost}:${remoteOptimizerRunner}"
-
-Write-Host "Syncing query writer to ${sshHost}:${remoteQueryWriter}"
-scp "$localQueryWriter" "${sshHost}:${remoteQueryWriter}"
-
-Write-Host "Syncing core dataset loader to ${sshHost}:${remoteCoreDatasetLoader}"
-scp "$localCoreDatasetLoader" "${sshHost}:${remoteCoreDatasetLoader}"
-
-Write-Host "Syncing main config to ${sshHost}:${remoteMainConfig}"
-scp "$localMainConfig" "${sshHost}:${remoteMainConfig}"
-
-Write-Host "Syncing thread block to ${sshHost}:${remoteThreadBlock}"
-scp "$localThreadBlock" "${sshHost}:${remoteThreadBlock}"
-
-Write-Host "Syncing MOO optimizer to ${sshHost}:${remoteMooOptimizer}"
-scp "$localMooOptimizer" "${sshHost}:${remoteMooOptimizer}"
-
-Write-Host "Syncing PDG context to ${sshHost}:${remotePdgContext}"
-scp "$localPdgContext" "${sshHost}:${remotePdgContext}"
-
-$localOptimizerPy = Resolve-Path "$PSScriptRoot/../../optimization/optimizer.py"
-$remoteOptimizerPy = "$remoteProjectRoot/optimization/optimizer.py"
-Write-Host "Syncing optimizer core to ${sshHost}:${remoteOptimizerPy}"
-scp "$localOptimizerPy" "${sshHost}:${remoteOptimizerPy}"
-
-$localResultProcessor = Resolve-Path "$PSScriptRoot/../../optimization/result_processor.py"
-$remoteResultProcessor = "$remoteProjectRoot/optimization/result_processor.py"
-Write-Host "Syncing result processor to ${sshHost}:${remoteResultProcessor}"
-scp "$localResultProcessor" "${sshHost}:${remoteResultProcessor}"
-
-Write-Host "Syncing backend runner to ${sshHost}:${remoteGaussRunner}"
-scp "$localGaussRunner" "${sshHost}:${remoteGaussRunner}"
 
 Write-Host "Starting remote backend on ${sshHost}:${remotePort}"
 
