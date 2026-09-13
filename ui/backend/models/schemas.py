@@ -66,17 +66,17 @@ class OptimizeRequest(BaseModel):
     use_continuous_dop: Optional[bool] = None
     moo_population_size: Optional[int] = None
     moo_generations: Optional[int] = None
-    use_pdg_moo: Optional[bool] = None
+    use_padg_moo: Optional[bool] = None
     min_improvement_ratio: Optional[float] = None
     min_reduction_threshold: Optional[int] = None
-    pdg_moo_WL: Optional[float] = None
-    pdg_moo_WC: Optional[float] = None
-    pdg_moo_B: Optional[int] = None
-    pdg_moo_T: Optional[int] = None
-    pdg_moo_K: Optional[int] = None
-    pdg_moo_b: Optional[int] = None
-    pdg_moo_p: Optional[int] = None
-    pdg_moo_lambda_I: Optional[float] = None
+    padg_moo_WL: Optional[float] = None
+    padg_moo_WC: Optional[float] = None
+    padg_moo_B: Optional[int] = None
+    padg_moo_T: Optional[int] = None
+    padg_moo_K: Optional[int] = None
+    padg_moo_b: Optional[int] = None
+    padg_moo_p: Optional[int] = None
+    padg_moo_lambda_I: Optional[float] = None
     force_rerun: bool = False
 
 

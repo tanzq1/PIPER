@@ -233,31 +233,31 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
     compute_optimal_dops_for_query(thread_blocks_for_query, **kwargs)
     _enforce_serial_dop_constraints(thread_blocks_for_query, base_nodes)
 
-    use_pdg_moo = kwargs.get('use_pdg_moo', False)
+    use_padg_moo = kwargs.get('use_padg_moo', False)
     use_moo = kwargs.get('use_moo', False)
 
-    if use_pdg_moo:
-        print(f"正在使用PDG-MOO优化器为 query {query_id} 选择最优DOP配置...")
+    if use_padg_moo:
+        print(f"正在使用PADG-MOO优化器为 query {query_id} 选择最优DOP配置...")
         try:
-            from pdg_moo import run_pdg_moo
-            from pdg_moo.pool import compute_J
+            from padg_moo import run_padg_moo
+            from padg_moo.pool import compute_J
 
-            WL = kwargs.get('pdg_moo_WL', 0.5)
-            WC = kwargs.get('pdg_moo_WC', 0.5)
-            B = kwargs.get('pdg_moo_B', 20)
-            T = kwargs.get('pdg_moo_T', 20)
-            K = kwargs.get('pdg_moo_K', 5)
-            b = kwargs.get('pdg_moo_b', 4)
-            p = kwargs.get('pdg_moo_p', 15)
-            lambda_I = kwargs.get('pdg_moo_lambda_I', 0.1)
+            WL = kwargs.get('padg_moo_WL', 0.5)
+            WC = kwargs.get('padg_moo_WC', 0.5)
+            B = kwargs.get('padg_moo_B', 20)
+            T = kwargs.get('padg_moo_T', 20)
+            K = kwargs.get('padg_moo_K', 5)
+            b = kwargs.get('padg_moo_b', 4)
+            p = kwargs.get('padg_moo_p', 15)
+            lambda_I = kwargs.get('padg_moo_lambda_I', 0.1)
 
-            pdg_start = time.time()
-            P, rounds_log = run_pdg_moo(
+            padg_start = time.time()
+            P, rounds_log = run_padg_moo(
                 thread_blocks_for_query,
                 base_nodes,
                 WL=WL, WC=WC, B=B, T=T, K=K, b=b, p=p, lambda_I=lambda_I,
             )
-            pdg_execution_time = time.time() - pdg_start
+            padg_execution_time = time.time() - padg_start
 
             if P:
                 all_L = [s.L for s in P]
@@ -274,8 +274,8 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
                     if tb.optimal_dop is not None
                 }
 
-            timing_info['per_query_decision_s'][query_id] = pdg_execution_time
-            print(f"  - Query {query_id} PDG-MOO耗时: {pdg_execution_time:.4f} 秒, 解池大小: {len(P)}")
+            timing_info['per_query_decision_s'][query_id] = padg_execution_time
+            print(f"  - Query {query_id} PADG-MOO耗时: {padg_execution_time:.4f} 秒, 解池大小: {len(P)}")
 
             for tid, dop in optimal_dop_config.items():
                 if tid in thread_blocks_for_query:
@@ -283,10 +283,10 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
                     tb.optimal_dop = dop
                     tb.pred_time = tb.pred_dop_exec_time.get(dop)
         except Exception as e:
-            print(f"  PDG-MOO optimization failed: {e}, falling back to MOO/path enumeration")
-            use_pdg_moo = False
+            print(f"  PADG-MOO optimization failed: {e}, falling back to MOO/path enumeration")
+            use_padg_moo = False
 
-    if not use_pdg_moo and use_moo:
+    if not use_padg_moo and use_moo:
         print(f"正在使用MOO优化器为 query {query_id} 选择最优DOP配置...")
         try:
             from .moo_dop_optimizer import optimize_thread_block_dops_with_moo
@@ -317,7 +317,7 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
             print(f"  MOO optimization failed: {e}, falling back to path enumeration")
             use_moo = False
 
-    if not use_pdg_moo and not use_moo:
+    if not use_padg_moo and not use_moo:
         print(f"正在生成候选路径并评估 query {query_id} 的最优路径...")
         query_decision_start_time = time.time()
         candidate_paths = generate_aligned_dop_configurations(thread_blocks_for_query)

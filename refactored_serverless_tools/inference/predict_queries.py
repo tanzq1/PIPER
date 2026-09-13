@@ -17,7 +17,7 @@ from core.plan_node import PlanNode
 from core.onnx_manager import ONNXModelManager
 from core.pipeline_pair import PipelinePair
 from core.thread_block import ThreadBlock
-from core.pdg_builder import convert_stage_dag_to_pdg, Pipeline
+from Projects.PIPER.refactored_serverless_tools.core.padg_builder import convert_stage_dag_to_padg, Pipeline
 from config.structure import thread_cost, thread_mem
 # -------------------------
 
@@ -569,10 +569,10 @@ def build_thread_blocks_from_nodes(all_nodes):
 
 def calculate_query_execution_time(all_nodes):
     """
-    Calculate query execution time using PDG-based algorithm.
+    Calculate query execution time using PADG-based algorithm.
     Two-step process:
-    1. Convert Stage DAG (ThreadBlocks) to PDG (Pipelines)
-    2. Calculate latency based on PDG using Algorithm 1
+    1. Convert Stage DAG (ThreadBlocks) to PADG (Pipelines)
+    2. Calculate latency based on PADG using Algorithm 1
     """
     if not all_nodes:
         return 0
@@ -583,10 +583,10 @@ def calculate_query_execution_time(all_nodes):
     if not thread_blocks:
         return 0
     
-    # Step 2: Convert Stage DAG to PDG
-    stage_pipelines, cross_stage_pairs = convert_stage_dag_to_pdg(thread_blocks)
+    # Step 2: Convert Stage DAG to PADG
+    stage_pipelines, cross_stage_pairs = convert_stage_dag_to_padg(thread_blocks)
     
-    # Step 3: Calculate query latency based on PDG
+    # Step 3: Calculate query latency based on PADG
     # For each stage, pipelines within the stage execute sequentially (due to pipeline breakers)
     # Cross-stage pipeline pairs can execute concurrently
     

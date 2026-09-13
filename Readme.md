@@ -14,7 +14,7 @@ PIPER is a resource provisioning framework for serverless query processing. It e
 │   ├── onnx_manager.py           # ONNX model loading and management
 │   ├── thread_block.py           # ThreadBlock abstraction and DOP selection logic
 │   ├── pipeline_pair.py          # Pipeline-pair construction
-│   └── pdg_builder.py            # Pipeline Dependency Graph (PDG) construction
+│   └── padg_builder.py            # Pipeline Dependency Graph (PADG) construction
 ├── training/                     # Model training
 │   ├── operator_dop_aware/       # DOP-aware operator models (PyTorch -> ONNX)
 │   ├── operator_non_dop_aware/   # DOP-agnostic operator models (XGBoost/SVR -> ONNX)
@@ -29,13 +29,13 @@ PIPER is a resource provisioning framework for serverless query processing. It e
 │   ├── threading_utils.py        # Threading utilities
 │   ├── result_processor.py       # Result export and multi-strategy comparison
 │   └── moo_dop_optimizer.py      # NSGA-II multi-objective optimization (pymoo)
-├── pdg_moo/                      # PDG-MOO optimization algorithm
+├── padg_moo/                      # PADG-MOO optimization algorithm
 │   ├── algorithm.py              # Segment-wise competitive Top-K expansion and elite-pool iteration
 │   ├── context.py                # Optimization context
 │   ├── actions.py                # Action-space definition
 │   ├── pool.py                   # Elite solution pool
 │   ├── incremental_eval.py       # Incremental evaluation
-│   └── run.py                    # PDG-MOO entry point
+│   └── run.py                    # PADG-MOO entry point
 ├── evaluation/                   # Evaluation module
 │   └── evaluate_predictions.py   # Q-error aggregation and reporting
 ├── scripts/                      # Script entry points
@@ -83,7 +83,7 @@ After obtaining operator-level predictions, PIPER provisions parallel resources 
 - **Pipeline optimization:** selects DOP for each ThreadBlock top-down using heuristic rules and flow-rate interval matching.
 - **Query-level optimization:** directly predicts total execution time under different DOP values using a query-level model.
 - **NSGA-II multi-objective optimization:** jointly optimizes latency, resource cost (`DOP x latency`), and flow-rate matching.
-- **PDG-MOO:** segment-wise competitive multi-objective optimization based on the Pipeline Dependency Graph.
+- **PADG-MOO:** segment-wise competitive multi-objective optimization based on the Pipeline Dependency Graph.
 
 ### 4. Evaluation and Comparison
 

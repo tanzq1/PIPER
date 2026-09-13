@@ -80,10 +80,11 @@ python compare.py --dataset tpcds
 - `tpcds`: TPC-DS dataset
 
 ### Training Methods
-- `dop_aware`: DOP-aware operator models
+- `dop_aware`: DOP-aware operator models/ pipeline
 - `non_dop_aware`: Non-DOP-aware operator models
 - `ppm`: PPM method (requires specifying --ppm_type GNN/NN)
 - `query_level`: Query-level models
+- `mci`: stage independent models
 
 ### Training Modes
 - `exact_train`: Exact training
@@ -94,6 +95,7 @@ python compare.py --dataset tpcds
 - `query_level`: Query-level optimization
 - `auto_dop`: Auto-DOP method
 - `ppm`: PPM method
+- `mci`: stage independent method
 
 ## 🔧 Parameter Description
 

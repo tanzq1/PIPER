@@ -17,7 +17,7 @@ from core.plan_node import PlanNode
 from core.onnx_manager import ONNXModelManager
 from core.pipeline_pair import Segment
 from core.thread_block import ThreadBlock
-from core.pdg_builder import convert_stage_dag_to_pdg, Pipeline
+from core.padg_builder import convert_stage_dag_to_padg, Pipeline
 from config.structure_config import thread_cost, thread_mem
 # -------------------------
 
@@ -353,10 +353,10 @@ def build_thread_blocks_from_nodes(all_nodes):
 
 def calculate_query_execution_time(all_nodes):
     """
-    Calculate query execution time using PDG-based algorithm.
+    Calculate query execution time using PADG-based algorithm.
     Two-step process:
-    1. Convert Stage DAG (ThreadBlocks) to PDG (Pipelines)
-    2. Calculate latency based on PDG using Algorithm 1
+    1. Convert Stage DAG (ThreadBlocks) to PADG (Pipelines)
+    2. Calculate latency based on PADG using Algorithm 1
     """
     if not all_nodes:
         return 0
@@ -367,8 +367,8 @@ def calculate_query_execution_time(all_nodes):
     if not thread_blocks:
         return 0
     
-    # Step 2: Convert Stage DAG to PDG (build segments from bottom to top)
-    top_segment = convert_stage_dag_to_pdg(thread_blocks, all_nodes)
+    # Step 2: Convert Stage DAG to PADG (build segments from bottom to top)
+    top_segment = convert_stage_dag_to_padg(thread_blocks, all_nodes)
     
     # #region agent log
     import json
@@ -376,10 +376,10 @@ def calculate_query_execution_time(all_nodes):
     with open(log_path, 'a') as f:
         top_seg_id = id(top_segment)
         upstream_ids = [id(us) for us in top_segment.upstream_segments] if top_segment.upstream_segments else []
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"predict_queries.py:587","message":"top_segment after convert_stage_dag_to_pdg","data":{"top_seg_id":top_seg_id,"upstream_count":len(top_segment.upstream_segments) if top_segment.upstream_segments else 0,"upstream_ids":upstream_ids,"self_in_upstream":top_seg_id in upstream_ids},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"predict_queries.py:587","message":"top_segment after convert_stage_dag_to_padg","data":{"top_seg_id":top_seg_id,"upstream_count":len(top_segment.upstream_segments) if top_segment.upstream_segments else 0,"upstream_ids":upstream_ids,"self_in_upstream":top_seg_id in upstream_ids},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
     
-    # Step 3: Calculate query latency based on PDG using Algorithm 1
+    # Step 3: Calculate query latency based on PADG using Algorithm 1
     # Use eval_pipeline_pair to recursively calculate completion time
     # This correctly handles:
     # - Inner-stage segments: return t(p) (single pipeline latency)

@@ -29,7 +29,7 @@ def main():
     USE_ESTIMATES_MODE = False  # Whether to use estimates
     
     # Training configuration
-    TRAIN_METHOD = 'dop_aware'  # Training method: 'dop_aware', 'non_dop_aware', 'ppm', 'query_level', 'mci'
+    TRAIN_METHOD = 'dop_aware'  # Training method: 'dop_aware=pipeline, train operator that can modify dop', 'non_dop_aware=pipeline, train operator that cannot modify dop', 'ppm=query level', 'query_level', 'mci=stage level'
     PPM_TYPE = 'NN'  # PPM type: 'GNN' or 'NN' (only effective when TRAIN_METHOD='ppm')
     TOTAL_QUERIES = 500  # Total number of queries
     TRAIN_RATIO = 1.0  # Training ratio
@@ -51,16 +51,16 @@ def main():
     MOO_WEIGHT_LATENCY = 0.7  # Latency weight (Note: throughput matching is reflected through candidate intervals, not as an objective)
     MOO_WEIGHT_COST = 0.3  # Cost weight
     INTERVAL_TOLERANCE = 0.3  # Throughput matching interval tolerance (±30%) - used for choose_optimal_dop
-    # PDG-MOO: competitive Top-K expansion + bounded elite pool (takes precedence over USE_MOO when True)
-    USE_PDG_MOO = True  # Whether to use PDG-MOO (segment-aware iterative DOP optimization)
-    PDG_MOO_WL = 0.7  # PDG-MOO latency weight (WL + WC = 1)
-    PDG_MOO_WC = 0.3  # PDG-MOO cost weight
-    PDG_MOO_B = 20  # Elite pool capacity
-    PDG_MOO_T = 20  # Max rounds
-    PDG_MOO_K = 5   # Top-K actions per parent
-    PDG_MOO_B_SLOW = 4   # Top-b slowest segs for A_balance
-    PDG_MOO_P = 15  # Top-p stages for A_profit
-    PDG_MOO_LAMBDA_I = 0.1  # Interference penalty weight I/L
+    # PADG-MOO: competitive Top-K expansion + bounded elite pool (takes precedence over USE_MOO when True)
+    USE_PADG_MOO = True  # Whether to use PADG-MOO (segment-aware iterative DOP optimization)
+    PADG_MOO_WL = 0.7  # PADG-MOO latency weight (WL + WC = 1)
+    PADG_MOO_WC = 0.3  # PADG-MOO cost weight
+    PADG_MOO_B = 20  # Elite pool capacity
+    PADG_MOO_T = 20  # Max rounds
+    PADG_MOO_K = 5   # Top-K actions per parent
+    PADG_MOO_B_SLOW = 4   # Top-b slowest segs for A_balance
+    PADG_MOO_P = 15  # Top-p stages for A_profit
+    PADG_MOO_LAMBDA_I = 0.1  # Interference penalty weight I/L
     
     # Runtime control - set which functions to run (True/False)
     RUN_TRAIN =  True  # Whether to run training
@@ -190,15 +190,15 @@ def main():
                 use_continuous_dop=USE_CONTINUOUS_DOP,
                 moo_population_size=MOO_POPULATION_SIZE,
                 moo_generations=MOO_GENERATIONS,
-                use_pdg_moo=USE_PDG_MOO,
-                pdg_moo_WL=PDG_MOO_WL,
-                pdg_moo_WC=PDG_MOO_WC,
-                pdg_moo_B=PDG_MOO_B,
-                pdg_moo_T=PDG_MOO_T,
-                pdg_moo_K=PDG_MOO_K,
-                pdg_moo_b=PDG_MOO_B_SLOW,
-                pdg_moo_p=PDG_MOO_P,
-                pdg_moo_lambda_I=PDG_MOO_LAMBDA_I,
+                use_padg_moo=USE_PADG_MOO,
+                padg_moo_WL=PADG_MOO_WL,
+                padg_moo_WC=PADG_MOO_WC,
+                padg_moo_B=PADG_MOO_B,
+                padg_moo_T=PADG_MOO_T,
+                padg_moo_K=PADG_MOO_K,
+                padg_moo_b=PADG_MOO_B_SLOW,
+                padg_moo_p=PADG_MOO_P,
+                padg_moo_lambda_I=PADG_MOO_LAMBDA_I,
                 model_dataset=MODEL_DATASET,  # Pass model dataset separately
                 train_ratio=TRAIN_RATIO
             )

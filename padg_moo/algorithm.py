@@ -6,7 +6,7 @@ Iterate T rounds or until no new solution enters P.
 from typing import List, Tuple, Any, Optional
 
 from . import types
-from .context import PDGContext
+from .context import PADGContext
 from .incremental_eval import IncrementalEvaluator
 from .actions import build_A_balance, build_A_profit
 from .actions import _adjacent_dop
@@ -14,7 +14,7 @@ from .pool import ElitePool
 
 
 def run_algorithm(
-    context: PDGContext,
+    context: PADGContext,
     evaluator: IncrementalEvaluator,
     pool: ElitePool,
     params: types.AlgoParams,

@@ -1,18 +1,18 @@
 """
-Entry point: run_pdg_moo(thread_blocks, all_nodes, WL, WC, B, T, K, ...).
+Entry point: run_padg_moo(thread_blocks, all_nodes, WL, WC, B, T, K, ...).
 Creates context, evaluator, pool, runs algorithm, returns (P, rounds_log).
 """
 
 from typing import Dict, List, Any, Tuple, Optional
 
 from . import types
-from .context import PDGContext
+from .context import PADGContext
 from .incremental_eval import IncrementalEvaluator
 from .pool import ElitePool
 from .algorithm import run_algorithm
 
 
-def run_pdg_moo(
+def run_padg_moo(
     thread_blocks: Dict[int, Any],
     all_nodes: List[Any],
     WL: float = 0.5,
@@ -30,7 +30,7 @@ def run_pdg_moo(
     **kwargs: Any,
 ) -> Tuple[List[types.Solution], List[types.RoundLog]]:
     """
-    Run PDG-MOO: competitive Top-K expansion + bounded elite pool.
+    Run PADG-MOO: competitive Top-K expansion + bounded elite pool.
 
     Args:
         thread_blocks: stage_id -> ThreadBlock (has .nodes, .pred_dop_exec_time, etc.)
@@ -64,7 +64,7 @@ def run_pdg_moo(
         rel_improve_threshold=rel_improve_threshold,
     )
 
-    context = PDGContext(thread_blocks, all_nodes)
+    context = PADGContext(thread_blocks, all_nodes)
     evaluator = IncrementalEvaluator(context)
     pool = ElitePool(context, evaluator, B=B, WL=WL, WC=WC)
 

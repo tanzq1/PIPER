@@ -1,6 +1,6 @@
 """
-Pipeline Dependency Graph (PDG) Builder.
-Converts Stage DAG (ThreadBlocks) to PDG (Pipelines) based on pipeline breakers.
+Pipeline Dependency Graph (PADG) Builder.
+Converts Stage DAG (ThreadBlocks) to PADG (Pipelines) based on pipeline breakers.
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -11,7 +11,7 @@ from core.pipeline_pair import PipelinePair
 
 class Pipeline:
     """
-    Represents a single pipeline in the PDG.
+    Represents a single pipeline in the PADG.
     A pipeline is identified as Stage.Pipeline (e.g., S1.P1).
     """
     
@@ -250,12 +250,12 @@ def build_cross_stage_pipeline_pairs(
     return pipeline_pairs
 
 
-def convert_pdg_to_pipeline_pairs(
+def convert_padg_to_pipeline_pairs(
     stage_pipelines: Dict[int, List[Pipeline]],
     thread_blocks: Dict[int, ThreadBlock]
 ) -> PipelinePair:
     """
-    Convert PDG (Pipelines) to PipelinePair structure for latency calculation.
+    Convert PADG (Pipelines) to PipelinePair structure for latency calculation.
     
     This function builds a hierarchical PipelinePair structure that represents:
     - Inner-stage segments: pipelines within the same stage (sequential execution)
@@ -370,13 +370,13 @@ def convert_pdg_to_pipeline_pairs(
         return PipelinePair(pipeline_latencies=[0.0], is_inner_stage=True)
 
 
-def convert_stage_dag_to_pdg(thread_blocks: Dict[int, ThreadBlock]) -> Tuple[Dict[int, List[Pipeline]], PipelinePair]:
+def convert_stage_dag_to_padg(thread_blocks: Dict[int, ThreadBlock]) -> Tuple[Dict[int, List[Pipeline]], PipelinePair]:
     """
-    Convert Stage DAG (ThreadBlocks) to PDG (Pipelines) and then to PipelinePair structure.
+    Convert Stage DAG (ThreadBlocks) to PADG (Pipelines) and then to PipelinePair structure.
     
     This is the main function that:
     1. Splits each stage into pipelines based on pipeline breakers
-    2. Converts PDG to PipelinePair structure for latency calculation
+    2. Converts PADG to PipelinePair structure for latency calculation
     
     Args:
         thread_blocks: Dict mapping thread_id to ThreadBlock (Stage DAG)
@@ -393,7 +393,7 @@ def convert_stage_dag_to_pdg(thread_blocks: Dict[int, ThreadBlock]) -> Tuple[Dic
         pipelines = split_stage_into_pipelines(thread_id, thread_block)
         stage_pipelines[thread_id] = pipelines
     
-    # Step 2: Convert PDG to PipelinePair structure
-    top_pipeline_pair = convert_pdg_to_pipeline_pairs(stage_pipelines, thread_blocks)
+    # Step 2: Convert PADG to PipelinePair structure
+    top_pipeline_pair = convert_padg_to_pipeline_pairs(stage_pipelines, thread_blocks)
     
     return stage_pipelines, top_pipeline_pair

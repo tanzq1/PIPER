@@ -1,6 +1,6 @@
 """
-Pipeline Dependency Graph (PDG) Builder.
-Converts Stage DAG (ThreadBlocks) to PDG (Pipelines) based on pipeline breakers.
+Pipeline Dependency Graph (PADG) Builder.
+Converts Stage DAG (ThreadBlocks) to PADG (Pipelines) based on pipeline breakers.
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -11,7 +11,7 @@ from core.pipeline_pair import Segment
 
 class Pipeline:
     """
-    Represents a single pipeline in the PDG.
+    Represents a single pipeline in the PADG.
     A pipeline is identified as Stage.Pipeline (e.g., S1.P1).
     """
     
@@ -83,7 +83,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
     import json
     log_path = '/home/zhy/opengauss/tools/new_serverless_predictor/.cursor/debug.log'
     with open(log_path, 'a') as f:
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"pdg_builder.py:82","message":"build_segments_from_bottom_up entry","data":{"all_nodes_count":len(all_nodes),"thread_blocks_count":len(thread_blocks)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"padg_builder.py:82","message":"build_segments_from_bottom_up entry","data":{"all_nodes_count":len(all_nodes),"thread_blocks_count":len(thread_blocks)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
     
     # Find leaf nodes (nodes with no children, e.g., CStore Scan)
@@ -93,7 +93,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
     # #region agent log
     with open(log_path, 'a') as f:
         leaf_info = [{"plan_id":n.plan_id,"operator_type":n.operator_type,"materialized":n.materialized} for n in leaf_nodes]
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"pdg_builder.py:84","message":"leaf nodes found","data":{"leaf_count":len(leaf_nodes),"leaf_nodes":leaf_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"padg_builder.py:84","message":"leaf nodes found","data":{"leaf_count":len(leaf_nodes),"leaf_nodes":leaf_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
         # Log tree structure
         tree_structure = []
         for node in all_nodes:
@@ -106,7 +106,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
                 "child_ids": child_ids,
                 "materialized": node.materialized
             })
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"pdg_builder.py:97","message":"tree structure","data":{"tree_structure":tree_structure},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"padg_builder.py:97","message":"tree structure","data":{"tree_structure":tree_structure},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
     
     # Map node to its thread_id (stage_id)
@@ -175,7 +175,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
         
         # #region agent log
         with open(log_path, 'a') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"pdg_builder.py:135","message":"processing node","data":{"node_plan_id":current_node.plan_id,"node_operator":current_node.operator_type},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"padg_builder.py:135","message":"processing node","data":{"node_plan_id":current_node.plan_id,"node_operator":current_node.operator_type},"timestamp":int(__import__('time').time()*1000)}) + '\n')
         # #endregion
         
         # Traverse upward to find segment (up to and including breaker)
@@ -192,7 +192,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
         with open(log_path, 'a') as f:
             segment_node_info = [{"plan_id":n.plan_id,"operator_type":n.operator_type,"materialized":n.materialized} for n in segment_nodes]
             breaker_info = {"plan_id":breaker.plan_id,"operator_type":breaker.operator_type,"materialized":breaker.materialized} if breaker else None
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"pdg_builder.py:151","message":"segment created","data":{"segment_nodes":segment_node_info,"is_cross_stage":is_cross_stage,"has_breaker":breaker is not None,"breaker":breaker_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"padg_builder.py:151","message":"segment created","data":{"segment_nodes":segment_node_info,"is_cross_stage":is_cross_stage,"has_breaker":breaker is not None,"breaker":breaker_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
         # #endregion
         
         # Create segment (now includes breaker if found)
@@ -229,7 +229,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
             for stage_id in stage_ids_in_segment:
                 stage_nodes = [n for n in segment_nodes if node_to_stage.get(n, 0) == stage_id]
                 stage_nodes_detail[stage_id] = [(n.plan_id, n.operator_type, n.execution_time) for n in stage_nodes]
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H","location":"pdg_builder.py:199","message":"segment latency calculation","data":{"pipeline_latencies":pipeline_latencies,"node_count":len(segment_nodes),"node_order":node_order,"stage_ids":list(stage_ids_in_segment),"stage_latencies":stage_latencies,"stage_nodes_detail":stage_nodes_detail,"is_cross_stage":is_cross_stage},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H","location":"padg_builder.py:199","message":"segment latency calculation","data":{"pipeline_latencies":pipeline_latencies,"node_count":len(segment_nodes),"node_order":node_order,"stage_ids":list(stage_ids_in_segment),"stage_latencies":stage_latencies,"stage_nodes_detail":stage_nodes_detail,"is_cross_stage":is_cross_stage},"timestamp":int(__import__('time').time()*1000)}) + '\n')
         # #endregion
         
         segment = Segment(
@@ -251,7 +251,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
             if parent not in processed_nodes and parent not in queue:
                 # #region agent log
                 with open(log_path, 'a') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"I","location":"pdg_builder.py:252","message":"adding breaker parent to queue","data":{"breaker":(breaker.plan_id,breaker.operator_type),"parent":(parent.plan_id,parent.operator_type)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"I","location":"padg_builder.py:252","message":"adding breaker parent to queue","data":{"breaker":(breaker.plan_id,breaker.operator_type),"parent":(parent.plan_id,parent.operator_type)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
                 # #endregion
                 queue.append(parent)
     
@@ -261,7 +261,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
     if unprocessed:
         with open(log_path, 'a') as f:
             unprocessed_info = [{"plan_id":n.plan_id,"operator_type":n.operator_type,"materialized":n.materialized} for n in unprocessed]
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"pdg_builder.py:248","message":"unprocessed nodes found","data":{"unprocessed_count":len(unprocessed),"unprocessed_nodes":unprocessed_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"padg_builder.py:248","message":"unprocessed nodes found","data":{"unprocessed_count":len(unprocessed),"unprocessed_nodes":unprocessed_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
     if unprocessed:
         # These might be nodes that are not reachable from leaves (shouldn't happen in valid query plans)
@@ -302,7 +302,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
     # #region agent log
     with open(log_path, 'a') as f:
         segments_info = [{"index":i,"nodes_count":len(s.nodes),"nodes":[(n.plan_id,n.operator_type) for n in s.nodes],"pipeline_latencies":s.pipeline_latencies} for i,s in enumerate(segments)]
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"pdg_builder.py:260","message":"segments before dependency building","data":{"segments_count":len(segments),"segments":segments_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"padg_builder.py:260","message":"segments before dependency building","data":{"segments_count":len(segments),"segments":segments_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
     
     # Build upstream dependencies between segments
@@ -315,7 +315,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
             
             # #region agent log
             with open(log_path, 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"pdg_builder.py:311","message":"checking segment for dependencies","data":{"seg_index":segments.index(seg),"top_node":(top_node.plan_id,top_node.operator_type),"has_parent":top_node.parent_node is not None,"parent":(top_node.parent_node.plan_id,top_node.parent_node.operator_type) if top_node.parent_node else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"padg_builder.py:311","message":"checking segment for dependencies","data":{"seg_index":segments.index(seg),"top_node":(top_node.plan_id,top_node.operator_type),"has_parent":top_node.parent_node is not None,"parent":(top_node.parent_node.plan_id,top_node.parent_node.operator_type) if top_node.parent_node else None},"timestamp":int(__import__('time').time()*1000)}) + '\n')
             # #endregion
             
             # Check if top_node has a parent that consumes data from this segment
@@ -326,14 +326,14 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
                 parent = top_node.parent_node
                 # #region agent log
                 with open(log_path, 'a') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"pdg_builder.py:267","message":"building dependency","data":{"seg_index":segments.index(seg),"top_node":(top_node.plan_id,top_node.operator_type),"parent":(parent.plan_id,parent.operator_type)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"padg_builder.py:267","message":"building dependency","data":{"seg_index":segments.index(seg),"top_node":(top_node.plan_id,top_node.operator_type),"parent":(parent.plan_id,parent.operator_type)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
                 # #endregion
                 # Find segment that contains the parent node (downstream segment)
                 # First check if parent is in current segment - if so, skip (no dependency needed)
                 if parent in seg.nodes:
                     # #region agent log
                     with open(log_path, 'a') as f:
-                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"pdg_builder.py:267","message":"parent in same segment, skipping","data":{"seg_index":segments.index(seg),"parent":(parent.plan_id,parent.operator_type)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"padg_builder.py:267","message":"parent in same segment, skipping","data":{"seg_index":segments.index(seg),"parent":(parent.plan_id,parent.operator_type)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
                     # #endregion
                     continue
                 
@@ -347,7 +347,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
                             found_downstream = True
                             # #region agent log
                             with open(log_path, 'a') as f:
-                                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"pdg_builder.py:274","message":"dependency found","data":{"upstream_seg_index":segments.index(seg),"downstream_seg_index":segments.index(other_seg)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"padg_builder.py:274","message":"dependency found","data":{"upstream_seg_index":segments.index(seg),"downstream_seg_index":segments.index(other_seg)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
                             # #endregion
                             break
                 
@@ -360,7 +360,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
                         for other_seg in segments:
                             if other_seg.nodes:
                                 all_seg_nodes.extend([(n.plan_id, n.operator_type) for n in other_seg.nodes])
-                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"pdg_builder.py:276","message":"dependency NOT found","data":{"seg_index":segments.index(seg),"top_node":(top_node.plan_id,top_node.operator_type),"parent":(parent.plan_id,parent.operator_type),"parent_in_any_segment":parent in [n for s in segments for n in s.nodes],"all_segment_nodes":all_seg_nodes},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"padg_builder.py:276","message":"dependency NOT found","data":{"seg_index":segments.index(seg),"top_node":(top_node.plan_id,top_node.operator_type),"parent":(parent.plan_id,parent.operator_type),"parent_in_any_segment":parent in [n for s in segments for n in s.nodes],"all_segment_nodes":all_seg_nodes},"timestamp":int(__import__('time').time()*1000)}) + '\n')
                 # #endregion
     
     # Find root segments: segments whose top_node has no parent_node (or parent not in any other segment)
@@ -410,7 +410,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
         root_segments_info = [{"index":segments.index(s),"nodes":[(n.plan_id,n.operator_type) for n in s.nodes],"pipeline_latencies":s.pipeline_latencies,"upstream_count":len(s.upstream_segments)} for s in root_segments]
         final_segments_info = [{"index":segments.index(s),"nodes":[(n.plan_id,n.operator_type) for n in s.nodes],"pipeline_latencies":s.pipeline_latencies,"upstream_count":len(s.upstream_segments)} for s in final_segments]
         all_segments_info = [{"index":i,"nodes":[(n.plan_id,n.operator_type) for n in s.nodes],"upstream_count":len(s.upstream_segments),"upstream_indices":[segments.index(us) for us in s.upstream_segments]} for i,s in enumerate(segments)]
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"pdg_builder.py:278","message":"root and final segments found","data":{"root_segments_count":len(root_segments),"root_segments":root_segments_info,"final_segments_count":len(final_segments),"final_segments":final_segments_info,"all_segments":all_segments_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"padg_builder.py:278","message":"root and final segments found","data":{"root_segments_count":len(root_segments),"root_segments":root_segments_info,"final_segments_count":len(final_segments),"final_segments":final_segments_info,"all_segments":all_segments_info},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
     
     # If multiple root segments, create a virtual final segment (virtual root) that sums all root segment latencies
@@ -442,7 +442,7 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
         with open(log_path, 'a') as f:
             final_seg_id = id(final_segment)
             root_seg_info = [{"index":segments.index(seg),"nodes":[(n.plan_id,n.operator_type) for n in seg.nodes],"pipeline_latencies":seg.pipeline_latencies} for seg in root_segments]
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"pdg_builder.py:299","message":"virtual final segment created (multiple root segments, sum latencies)","data":{"final_seg_id":final_seg_id,"total_latency":total_latency,"pipeline_latencies":final_segment.pipeline_latencies,"root_segments_count":len(root_segments),"root_segments":root_seg_info,"upstream_count":len(final_segment.upstream_segments),"is_inner_stage":final_segment.is_inner_stage},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"padg_builder.py:299","message":"virtual final segment created (multiple root segments, sum latencies)","data":{"final_seg_id":final_seg_id,"total_latency":total_latency,"pipeline_latencies":final_segment.pipeline_latencies,"root_segments_count":len(root_segments),"root_segments":root_seg_info,"upstream_count":len(final_segment.upstream_segments),"is_inner_stage":final_segment.is_inner_stage},"timestamp":int(__import__('time').time()*1000)}) + '\n')
         # #endregion
         
         return final_segment
@@ -452,26 +452,26 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
         if len(final_segments) == 1:
             # #region agent log
             with open(log_path, 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"pdg_builder.py:301","message":"single final segment returned","data":{"pipeline_latencies":final_segments[0].pipeline_latencies,"upstream_count":len(final_segments[0].upstream_segments)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"padg_builder.py:301","message":"single final segment returned","data":{"pipeline_latencies":final_segments[0].pipeline_latencies,"upstream_count":len(final_segments[0].upstream_segments)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
             # #endregion
             return final_segments[0]
         else:
             # Fallback: return root segment if no final segment found
             # #region agent log
             with open(log_path, 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"pdg_builder.py:301","message":"single root segment returned (no final segment)","data":{"pipeline_latencies":root_segments[0].pipeline_latencies,"upstream_count":len(root_segments[0].upstream_segments)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"padg_builder.py:301","message":"single root segment returned (no final segment)","data":{"pipeline_latencies":root_segments[0].pipeline_latencies,"upstream_count":len(root_segments[0].upstream_segments)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
             # #endregion
             return root_segments[0]
     else:
         # #region agent log
         with open(log_path, 'a') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"pdg_builder.py:304","message":"fallback empty segment","data":{},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"padg_builder.py:304","message":"fallback empty segment","data":{},"timestamp":int(__import__('time').time()*1000)}) + '\n')
         # #endregion
         # Fallback: create empty segment
         return Segment(pipeline_latencies=[0.0], is_inner_stage=True, pipelines=[])
 
 
-def convert_stage_dag_to_pdg(thread_blocks: Dict[int, ThreadBlock], all_nodes: List[PlanNode]) -> Segment:
+def convert_stage_dag_to_padg(thread_blocks: Dict[int, ThreadBlock], all_nodes: List[PlanNode]) -> Segment:
     """
     Convert Stage DAG (ThreadBlocks) to Segment structure.
     Build segments from bottom to top (from leaf nodes upward to breakers).
@@ -494,6 +494,6 @@ def convert_stage_dag_to_pdg(thread_blocks: Dict[int, ThreadBlock], all_nodes: L
     with open(log_path, 'a') as f:
         top_seg_id = id(top_segment)
         upstream_ids = [id(us) for us in top_segment.upstream_segments] if top_segment.upstream_segments else []
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"pdg_builder.py:422","message":"convert_stage_dag_to_pdg returning","data":{"top_seg_id":top_seg_id,"upstream_count":len(top_segment.upstream_segments) if top_segment.upstream_segments else 0,"upstream_ids":upstream_ids,"self_in_upstream":top_seg_id in upstream_ids},"timestamp":int(__import__('time').time()*1000)}) + '\n')
+        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"padg_builder.py:422","message":"convert_stage_dag_to_padg returning","data":{"top_seg_id":top_seg_id,"upstream_count":len(top_segment.upstream_segments) if top_segment.upstream_segments else 0,"upstream_ids":upstream_ids,"self_in_upstream":top_seg_id in upstream_ids},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
     return top_segment

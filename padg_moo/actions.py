@@ -5,12 +5,12 @@ Action generation: A_balance (top-b slow segs, bottleneck ±1), A_profit (low-yi
 from typing import Dict, List, Any, Optional, Set
 
 from . import types
-from .context import PDGContext
+from .context import PADGContext
 from .incremental_eval import IncrementalEvaluator
 
 
 def _adjacent_dop(
-    context: PDGContext, stage_id: int, current_dop: int, delta: int
+    context: PADGContext, stage_id: int, current_dop: int, delta: int
 ) -> Optional[int]:
     """Next/prev DOP in candidate list. delta in {-1, +1}. Returns None if no adjacent."""
     cand = context.candidate_dops(stage_id)
@@ -28,7 +28,7 @@ def _adjacent_dop(
 
 def build_A_balance(
     d: types.DopConfig,
-    context: PDGContext,
+    context: PADGContext,
     evaluator: IncrementalEvaluator,
     b: int = 4,
 ) -> List[types.Action]:
@@ -76,7 +76,7 @@ def build_A_balance(
 
 def build_A_profit(
     d: types.DopConfig,
-    context: PDGContext,
+    context: PADGContext,
     evaluator: IncrementalEvaluator,
     p: int = 15,
     gap_min: float = 0.05,

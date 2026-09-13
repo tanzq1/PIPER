@@ -267,10 +267,10 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
                             use_moo: bool = False, use_continuous_dop: bool = True,
                             moo_population_size: int = 30, moo_generations: int = 20,
                             interval_tolerance: float = 0.3, model_dataset: str = None,
-                            use_pdg_moo: bool = False,
-                            pdg_moo_WL: float = 0.5, pdg_moo_WC: float = 0.5,
-                            pdg_moo_B: int = 20, pdg_moo_T: int = 20, pdg_moo_K: int = 5,
-                            pdg_moo_b: int = 4, pdg_moo_p: int = 15, pdg_moo_lambda_I: float = 0.1,
+                            use_padg_moo: bool = False,
+                            padg_moo_WL: float = 0.5, padg_moo_WC: float = 0.5,
+                            padg_moo_B: int = 20, padg_moo_T: int = 20, padg_moo_K: int = 5,
+                            padg_moo_b: int = 4, padg_moo_p: int = 15, padg_moo_lambda_I: float = 0.1,
                             train_ratio: float = None) -> bool:
     """
     Run Pipeline optimization - operator-level parallelism optimization
@@ -282,14 +282,14 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
         min_improvement_ratio: Minimum improvement ratio
         min_reduction_threshold: Minimum reduction threshold
         use_estimates: Whether to use estimates
-        use_moo: Whether to use MOO (NSGA-II) when use_pdg_moo is False
+        use_moo: Whether to use MOO (NSGA-II) when use_padg_moo is False
         use_continuous_dop: Whether MOO searches DOP in continuous interval
         moo_population_size: MOO population size
         moo_generations: MOO evolution generations
         interval_tolerance: Throughput matching interval tolerance
         model_dataset: Training model dataset name (if None, use dataset)
-        use_pdg_moo: Whether to use PDG-MOO (competitive Top-K + elite pool); takes precedence over use_moo
-        pdg_moo_WL, pdg_moo_WC, pdg_moo_B, pdg_moo_T, pdg_moo_K, pdg_moo_b, pdg_moo_p, pdg_moo_lambda_I: PDG-MOO params
+        use_padg_moo: Whether to use PADG-MOO (competitive Top-K + elite pool); takes precedence over use_moo
+        padg_moo_WL, padg_moo_WC, padg_moo_B, padg_moo_T, padg_moo_K, padg_moo_b, padg_moo_p, padg_moo_lambda_I: PADG-MOO params
 
     Returns:
         bool: Success status
@@ -335,15 +335,15 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
                 use_continuous_dop=use_continuous_dop,
                 moo_population_size=moo_population_size,
                 moo_generations=moo_generations,
-                use_pdg_moo=use_pdg_moo,
-                pdg_moo_WL=pdg_moo_WL,
-                pdg_moo_WC=pdg_moo_WC,
-                pdg_moo_B=pdg_moo_B,
-                pdg_moo_T=pdg_moo_T,
-                pdg_moo_K=pdg_moo_K,
-                pdg_moo_b=pdg_moo_b,
-                pdg_moo_p=pdg_moo_p,
-                pdg_moo_lambda_I=pdg_moo_lambda_I,
+                use_padg_moo=use_padg_moo,
+                padg_moo_WL=padg_moo_WL,
+                padg_moo_WC=padg_moo_WC,
+                padg_moo_B=padg_moo_B,
+                padg_moo_T=padg_moo_T,
+                padg_moo_K=padg_moo_K,
+                padg_moo_b=padg_moo_b,
+                padg_moo_p=padg_moo_p,
+                padg_moo_lambda_I=padg_moo_lambda_I,
             )
         
         if result is not None:
@@ -512,11 +512,11 @@ def run_pipeline_optimization_single_query(dataset: str, train_mode: str, query_
                                            moo_generations: int = 20,
                                            interval_tolerance: float = 0.3,
                                            model_dataset: Optional[str] = None,
-                                           use_pdg_moo: bool = False,
-                                           pdg_moo_WL: float = 0.5, pdg_moo_WC: float = 0.5,
-                                           pdg_moo_B: int = 20, pdg_moo_T: int = 20,
-                                           pdg_moo_K: int = 5, pdg_moo_b: int = 4,
-                                           pdg_moo_p: int = 15, pdg_moo_lambda_I: float = 0.1,
+                                           use_padg_moo: bool = False,
+                                           padg_moo_WL: float = 0.5, padg_moo_WC: float = 0.5,
+                                           padg_moo_B: int = 20, padg_moo_T: int = 20,
+                                           padg_moo_K: int = 5, padg_moo_b: int = 4,
+                                           padg_moo_p: int = 15, padg_moo_lambda_I: float = 0.1,
                                            train_ratio: Optional[float] = None,
                                            df_plans_all_dops=None,
                                            onnx_manager=None,
@@ -552,15 +552,15 @@ def run_pipeline_optimization_single_query(dataset: str, train_mode: str, query_
         use_continuous_dop=use_continuous_dop,
         moo_population_size=moo_population_size,
         moo_generations=moo_generations,
-        use_pdg_moo=use_pdg_moo,
-        pdg_moo_WL=pdg_moo_WL,
-        pdg_moo_WC=pdg_moo_WC,
-        pdg_moo_B=pdg_moo_B,
-        pdg_moo_T=pdg_moo_T,
-        pdg_moo_K=pdg_moo_K,
-        pdg_moo_b=pdg_moo_b,
-        pdg_moo_p=pdg_moo_p,
-        pdg_moo_lambda_I=pdg_moo_lambda_I,
+        use_padg_moo=use_padg_moo,
+        padg_moo_WL=padg_moo_WL,
+        padg_moo_WC=padg_moo_WC,
+        padg_moo_B=padg_moo_B,
+        padg_moo_T=padg_moo_T,
+        padg_moo_K=padg_moo_K,
+        padg_moo_b=padg_moo_b,
+        padg_moo_p=padg_moo_p,
+        padg_moo_lambda_I=padg_moo_lambda_I,
     )
     return result
 

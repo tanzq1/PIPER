@@ -1,5 +1,5 @@
 """
-Type definitions for PDG-MOO: DopConfig, Action, Solution, RoundLog, AlgoParams.
+Type definitions for PADG-MOO: DopConfig, Action, Solution, RoundLog, AlgoParams.
 """
 
 from dataclasses import dataclass, field

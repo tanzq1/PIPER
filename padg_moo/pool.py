@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import math
 
 from . import types
-from .context import PDGContext
+from .context import PADGContext
 from .incremental_eval import IncrementalEvaluator
 
 
@@ -62,7 +62,7 @@ class ElitePool:
 
     def __init__(
         self,
-        context: PDGContext,
+        context: PADGContext,
         evaluator: IncrementalEvaluator,
         B: int,
         WL: float = 0.5,

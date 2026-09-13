@@ -1,6 +1,6 @@
 """
-PDG context: build top_segment, all_segments, stage_to_segs, stage_exec_time, candidate_dops.
-Uses core.pdg_builder.convert_stage_dag_to_pdg and optimization.moo_dop_optimizer for exec-time curve.
+PADG context: build top_segment, all_segments, stage_to_segs, stage_exec_time, candidate_dops.
+Uses core.padg_builder.convert_stage_dag_to_padg and optimization.moo_dop_optimizer for exec-time curve.
 """
 
 import warnings
@@ -76,9 +76,9 @@ def _compute_marginal_gain_dop(
     return v
 
 
-class PDGContext:
+class PADGContext:
     """
-    PDG context built from (thread_blocks, all_nodes).
+    PADG context built from (thread_blocks, all_nodes).
     Provides: top_segment, all_segments, stage_to_segs, stage_exec_time, candidate_dops, seg_ratio(s, seg).
     """
 
@@ -87,11 +87,11 @@ class PDGContext:
         thread_blocks: dict stage_id -> ThreadBlock (has .nodes, .pred_dop_exec_time, etc.)
         all_nodes: list of PlanNode for the query.
         """
-        from core.pdg_builder import convert_stage_dag_to_pdg
+        from core.padg_builder import convert_stage_dag_to_padg
 
         self._thread_blocks = dict(thread_blocks)
         self._all_nodes = list(all_nodes)
-        self._top_segment = convert_stage_dag_to_pdg(self._thread_blocks, self._all_nodes)
+        self._top_segment = convert_stage_dag_to_padg(self._thread_blocks, self._all_nodes)
         self._all_segments = _collect_all_segments(self._top_segment)
 
         # stage_id -> list of segments that contain this stage
