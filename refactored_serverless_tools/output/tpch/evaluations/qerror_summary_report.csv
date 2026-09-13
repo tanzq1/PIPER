@@ -1,0 +1,13 @@
+model;experiment_type;p50_q_error_time;p90_q_error_time;avg_q_error_time;p50_q_error_mem;p90_q_error_mem;avg_q_error_mem
+(Operator-Level);estimated_estimated;1.2817;8.5098;3.5196;0.2103;1.1619;0.4496
+(Operator-Level);exact_estimated;4.7241;21.1549;8.3344;0.3353;1.8403;0.8541
+(Operator-Level);exact_exact;0.2776;0.8043;0.3666;0.2194;0.9921;0.3465
+PPM-GNN;estimated_train_eval_estimated;16368099000.0000;44273240000.0000;22445831818.7970;758169600.0000;3539128320.0000;1321106285.7068
+PPM-GNN;exact_train_eval_estimated;3.0485;5297.6195;1877.6523;758169600.0000;3539128320.0000;1321106285.7068
+PPM-GNN;exact_train_eval_exact;2.7465;4482.5155;1825.3967;758169600.0000;3539128320.0000;1321106285.7068
+PPM-NN;estimated_train_eval_estimated;0.1867;7.2627;2.7892;0.1427;2.2692;0.8282
+PPM-NN;exact_train_eval_estimated;0.3142;4.3824;2.3372;0.3329;4.4046;5.6471
+PPM-NN;exact_train_eval_exact;0.1997;6.2614;2.7415;0.1225;2.2908;0.8912
+Query-Level (XGBoost);estimated_train_eval_estimated;0.0628;0.5077;0.2288;0.0019;0.2984;0.3137
+Query-Level (XGBoost);exact_train_eval_estimated;0.1212;0.9061;0.3438;0.1237;2.0273;0.7236
+Query-Level (XGBoost);exact_train_eval_exact;0.0726;0.8997;0.2356;0.0014;0.3945;0.3915

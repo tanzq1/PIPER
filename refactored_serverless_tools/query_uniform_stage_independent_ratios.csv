@@ -1,0 +1,17 @@
+dataset,query_id,metric,comparison,value,extreme
+TPC-DS,71,cost,Query-uniform/PIPER,9.861188067353472,max
+TPC-DS,55,cost,Query-uniform/PIPER,0.23925306657063042,min
+TPC-DS,46,cost,Stage-independent/PIPER,5.9081717583392965,max
+TPC-DS,22,cost,Stage-independent/PIPER,0.4123505759461973,min
+TPC-DS,72,time,Query-uniform/PIPER,10.36763821862596,max
+TPC-DS,67,time,Query-uniform/PIPER,0.32390070142980465,min
+TPC-DS,72,time,Stage-independent/PIPER,7.151256185326531,max
+TPC-DS,43,time,Stage-independent/PIPER,0.1760258974690271,min
+TPC-H,8,cost,Query-uniform/PIPER,9.139856552806943,max
+TPC-H,13,cost,Query-uniform/PIPER,0.5959763951032596,min
+TPC-H,11,cost,Stage-independent/PIPER,3.219036651551255,max
+TPC-H,6,cost,Stage-independent/PIPER,0.6792047998092791,min
+TPC-H,22,time,Query-uniform/PIPER,5.949137094482659,max
+TPC-H,3,time,Query-uniform/PIPER,0.8306860222382294,min
+TPC-H,5,time,Stage-independent/PIPER,2.4150604010804817,max
+TPC-H,19,time,Stage-independent/PIPER,0.8466797033419016,min

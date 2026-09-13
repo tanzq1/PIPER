@@ -1,0 +1,9 @@
+model_name,training_time_seconds
+exact_query_level_xgboost_exec,1.7002742290496826
+exact_query_level_xgboost_mem,0.49355244636535645
+estimated_query_level_xgboost_exec,1.0662484169006348
+estimated_query_level_xgboost_mem,1.2533729076385498
+exact_PPM-NN_total,60.53148818016052
+exact_PPM-GNN_total,223.64858198165894
+estimated_PPM-GNN_total,214.79011297225952
+estimated_PPM-NN_total,61.80620884895325

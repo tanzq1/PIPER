@@ -1,0 +1,2 @@
+Operator,Training Time (s),Execution Time MAE,Execution Time Q-error,Average Execution Time,Native Execution Time (s),ONNX Execution Time (s)
+Vector Streaming LOCAL REDISTRIBUTE,99.00221037864685,tensor(885.0712),tensor(36.5622),tensor(3177.3193),0.0009698867797851562,0.0006363391876220703

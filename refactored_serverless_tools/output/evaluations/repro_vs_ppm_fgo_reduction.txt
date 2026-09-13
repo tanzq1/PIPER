@@ -1,0 +1,21 @@
+RePro (OPRO) vs baselines — TPC-H
+(Positive % means RePro is lower than the baseline.)
+
+  [延迟]
+    vs Query-Uniform:  平均 +49.81% | p50 +56.55% | p90 +43.27% | p99 +28.11%
+    vs Stage-Independent:  平均 +45.26% | p50 +46.89% | p90 +55.01% | p99 +26.02%
+
+  [成本]
+    vs Query-Uniform:  平均 +70.78% | p50 +71.91% | p90 +78.51% | p99 +56.62%
+    vs Stage-Independent:  平均 +46.37% | p50 +54.54% | p90 +60.22% | p99 +20.18%
+
+RePro (OPRO) vs baselines — TPC-DS
+(Positive % means RePro is lower than the baseline.)
+
+  [延迟]
+    vs Query-Uniform:  平均 +13.56% | p50 +41.88% | p90 +37.75% | p99 +0.43%
+    vs Stage-Independent:  平均 +4.46% | p50 +6.57% | p90 +9.09% | p99 +2.23%
+
+  [成本]
+    vs Query-Uniform:  平均 +39.46% | p50 +22.70% | p90 +20.94% | p99 +54.23%
+    vs Stage-Independent:  平均 +14.26% | p50 +48.55% | p90 -0.55% | p99 +12.10%

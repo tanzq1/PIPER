@@ -1,0 +1,12 @@
+Type,Bin,Q-error
+Execution,1-5s,1880.5784
+Execution,5-30s,1790.1459
+Execution,>30s,2183.1934
+Memory,300M-1G,77471290.0
+Memory,50M-300M,20411734.0
+Memory,>1G,1445856800.0
+
+ONNX Total Execution Prediction Duration,0.032816
+ONNX Avg Execution Prediction Latency,0.000247
+ONNX Total Memory Prediction Duration,0.031939
+ONNX Avg Memory Prediction Latency,0.000240

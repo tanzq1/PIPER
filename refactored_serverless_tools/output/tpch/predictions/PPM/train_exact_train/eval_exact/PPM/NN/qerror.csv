@@ -1,0 +1,15 @@
+Time Bin,Execution Time Q-error
+1-5s,7.7883544
+5-30s,0.7021219
+>30s,7.4423847
+
+Memory Bin,Memory Q-error
+300M-1G,0.34964854
+50M-300M,3.6804485
+>1G,0.7009135
+
+ONNX Time Prediction Time,0.001059
+ONNX Memory Prediction Time,0.001161
+ONNX Avg Time Prediction Latency,0.000008
+ONNX Total Memory Prediction Duration,0.001163
+ONNX Avg Memory Prediction Latency,0.000008
