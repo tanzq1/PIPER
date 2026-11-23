@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 import math
 
+from config.main_config import DOP_SETS
+
 try:
     from pymoo.algorithms.moo.nsga2 import NSGA2
     from pymoo.core.problem import Problem
@@ -46,7 +48,7 @@ def compute_exec_time_from_params(pred_params: Any, dop: int, is_parallel: bool,
     """
     Compute execution time at given DOP using curve parameters
     
-    Formula: exec_time = (b / dop^a) + (d * dop^c) + e
+    Formula: exec_time = (b / dop^a) + (c * dop^d) + e
     where pred_params = [a, b, c, d, e]
     """
     if not is_parallel or pred_params is None:
@@ -54,9 +56,9 @@ def compute_exec_time_from_params(pred_params: Any, dop: int, is_parallel: bool,
         return base_time
     
     try:
-        # Curve formula: exec_time = (b / dop^a) + (d * dop^c) + e
+        # Curve formula: exec_time = (b / dop^a) + (c * dop^d) + e
         a, b, c, d, e = pred_params[0], pred_params[1], pred_params[2], pred_params[3], pred_params[4]
-        exec_time = (b / (dop ** a)) + (d * (dop ** c)) + e
+        exec_time = (b / (dop ** a)) + (c * (dop ** d)) + e
         return max(exec_time, 0.1)  # Ensure positive value
     except Exception:
         # Fallback
@@ -501,10 +503,36 @@ class DependentRepair(Repair):
                 X[i, j] = fixed
         return X
 
+class FullRangeSampling(Sampling):
+    """Seed with the heuristic assignment and both bounds, then sample even DOPs."""
+
+    def __init__(self, heuristic_seed):
+        super().__init__()
+        self.heuristic_seed = heuristic_seed
+
+    def _do(self, problem, n_samples, **kwargs):
+        low, high = problem.xl, problem.xu
+        counts = (high - low) // 2 + 1
+        population = low + 2 * np.random.randint(0, counts, size=(n_samples, problem.n_var))
+        seeds = np.asarray([self.heuristic_seed, low, high])
+        count = min(n_samples, len(seeds))
+        population[:count] = seeds[:count]
+        return population
+
+
+class FullRangeRepair(Repair):
+    """Project onto the even DOP grid, with fixed DOP 1 for serial stages."""
+
+    def _do(self, problem, X, **kwargs):
+        low, high = problem.xl, problem.xu
+        nearest = low + 2 * np.rint((X - low) / 2)
+        return np.clip(nearest, low, high).astype(int)
+
+
 class ThreadBlockDOPProblem(Problem):
     """Thread Block DOP optimization problem for NSGA-II"""
     
-    def __init__(self, thread_blocks: List[ThreadBlockInfo], use_continuous_dop: bool = True, enable_cache: bool = True, mismatch_penalty: float = 0.0):
+    def __init__(self, thread_blocks: List[ThreadBlockInfo], use_continuous_dop: bool = True, enable_cache: bool = True, mismatch_penalty: float = 0.0, track_evaluations: bool = False):
         """
         Initialize the optimization problem.
         
@@ -521,6 +549,7 @@ class ThreadBlockDOPProblem(Problem):
         self.enable_cache = enable_cache
         self.mismatch_penalty = mismatch_penalty
         self._cache = {}  # Cache for objective function evaluations
+        self.evaluated_dops = {tid: set() for tid in self.thread_ids} if track_evaluations else None
         
         # Define variable boundaries
         n_vars = len(thread_blocks)
@@ -675,6 +704,10 @@ class ThreadBlockDOPProblem(Problem):
                     dop = candidate_list[idx]
                     dop_config[tb.thread_id] = dop
             
+            if self.evaluated_dops is not None:
+                for tid, dop in dop_config.items():
+                    self.evaluated_dops[tid].add(dop)
+
             # Check cache first to avoid redundant computation
             cache_key = tuple(sorted(dop_config.items()))
             if self.enable_cache and cache_key in self._cache:
@@ -776,7 +809,9 @@ def optimize_thread_block_dops_with_moo(
     mismatch_penalty: float = 0.0,
     enable_endpoint_ranges: bool = True,
     rel_improve_threshold: float = 0.03,
-    samples_per_stage: int = 5
+    samples_per_stage: int = 5,
+    use_full_dop_range: bool = False,
+    search_audit: Optional[dict] = None,
 ) -> Tuple[Dict[int, int], float]:
     """
     Optimize thread block DOP configuration using MOO (NSGA-II)
@@ -800,7 +835,11 @@ def optimize_thread_block_dops_with_moo(
     Note:
         Flow matching is encouraged via a penalty term added to the latency objective.
     """
+    if use_full_dop_range and not use_continuous_dop:
+        raise ValueError("Full DOP range requires continuous interval search")
     if not PYMOO_AVAILABLE:
+        if use_full_dop_range:
+            raise RuntimeError("Full DOP range requires pymoo")
         print("Warning: pymoo not available, using greedy fallback")
         # Fallback: use existing candidate_optimal_dops
         return {tid: tb.optimal_dop for tid, tb in thread_blocks.items()}, 0.0
@@ -862,6 +901,31 @@ def optimize_thread_block_dops_with_moo(
         except Exception:
             pass
     
+    if use_full_dop_range:
+        even_dops = sorted(dop for dop in DOP_SETS if dop >= 2 and dop % 2 == 0)
+        if not even_dops:
+            raise ValueError("DOP_SETS contains no even parallel DOPs")
+        heuristic_seed = []
+        heuristic_ranges = {}
+        for info in thread_block_infos:
+            tid = info.thread_id
+            tb = thread_blocks[tid]
+            hints = info.candidate_dops or [tb.optimal_dop]
+            heuristic_ranges[tid] = [int(min(hints)), int(max(hints))]
+            if tb.candidate_dops == {1}:
+                info.candidate_dops = [1]
+                heuristic_seed.append(1)
+            else:
+                info.candidate_dops = [even_dops[0], even_dops[-1]]
+                nearest_hint = min(hints, key=lambda dop: abs(dop - tb.optimal_dop))
+                heuristic_seed.append(min(even_dops, key=lambda dop: abs(dop - nearest_hint)))
+        sampling = FullRangeSampling(heuristic_seed)
+        repair = FullRangeRepair()
+        print("  Full-range NSGA-II: heuristic intervals used for initialization")
+    else:
+        sampling = DependentSampling(rel_improve_threshold=rel_improve_threshold)
+        repair = DependentRepair(rel_improve_threshold=rel_improve_threshold)
+
     print(f"  MOO optimization: {len(thread_block_infos)} thread blocks")
     if use_continuous_dop:
         print(f"  Mode: Continuous DOP search in interval [min, max]")
@@ -873,7 +937,8 @@ def optimize_thread_block_dops_with_moo(
         thread_block_infos,
         use_continuous_dop=use_continuous_dop,
         enable_cache=True,
-        mismatch_penalty=mismatch_penalty
+        mismatch_penalty=mismatch_penalty,
+        track_evaluations=search_audit is not None,
     )
     
     # Configure NSGA-II algorithm with optimized parameters for speed
@@ -882,11 +947,11 @@ def optimize_thread_block_dops_with_moo(
     algorithm = NSGA2(
         pop_size=population_size,
         n_offsprings=population_size,
-        sampling=DependentSampling(rel_improve_threshold=rel_improve_threshold) if PYMOO_AVAILABLE else IntegerRandomSampling(),
+        sampling=sampling,
         crossover=SBX(prob=0.8, eta=15),  # Slightly lower prob for faster convergence
         mutation=PM(eta=20),
         eliminate_duplicates=True,
-        repair=DependentRepair(rel_improve_threshold=rel_improve_threshold) if PYMOO_AVAILABLE else None
+        repair=repair
     )
     
     # Set termination criterion: use early stopping if no improvement for 3 generations
@@ -917,6 +982,8 @@ def optimize_thread_block_dops_with_moo(
     
     # Select best solution from Pareto front
     if res.F is None or len(res.F) == 0:
+        if use_full_dop_range:
+            raise RuntimeError("Full-range NSGA-II returned no solutions")
         print("  Warning: MOO optimization failed, using greedy fallback")
         return {tid: tb.optimal_dop for tid, tb in thread_blocks.items()}, moo_execution_time
     
@@ -971,5 +1038,18 @@ def optimize_thread_block_dops_with_moo(
     print(f"  MOO found Pareto front with {len(res.F)} solutions")
     print(f"  Best solution: latency={latencies[best_idx]:.2f}, cost={costs[best_idx]:.2f}")
     
+    if use_full_dop_range and search_audit is not None:
+        search_audit.update(
+            heuristic_seed=heuristic_seed,
+            heuristic_ranges=heuristic_ranges,
+            variable_bounds={tb.thread_id: [int(problem.xl[i]), int(problem.xu[i])]
+                             for i, tb in enumerate(thread_block_infos)},
+            evaluated_dops={tid: sorted(dops) for tid, dops in problem.evaluated_dops.items()},
+            evaluations=int(res.algorithm.evaluator.n_eval),
+            pareto_count=len(res.F),
+            nsga2_selected_stage_dops={tid: int(dop) for tid, dop in dop_config.items()},
+            selected_predicted_latency_ms=float(latencies[best_idx]),
+            selected_predicted_cost_dop_ms=float(costs[best_idx]),
+        )
     return dop_config, moo_execution_time
 

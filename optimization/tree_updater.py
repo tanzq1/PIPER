@@ -22,11 +22,11 @@ def update_tree_estimated_inputs(node: PlanNode):
     # 从子节点返回后，更新当前节点的估计输入
     node.update_estimated_inputs()
     
-    # 重新生成特征并进行推理
-    # 传入节点自身的属性字典作为数据源，因为它包含了所有原始信息
-    node.get_feature_data(node.__dict__) 
-    node.infer_exec_with_onnx()
-    node.infer_mem_with_onnx()
+    # Preserve plan fields such as join type, filters and aggregation metadata.
+    node.get_feature_data(node.plan_data)
+    if node.onnx_manager is not None:
+        node.infer_exec_with_onnx()
+        node.infer_mem_with_onnx()
 
 def build_query_trees(df_plans_base_dop, onnx_manager, use_estimates=False): # <--- 在这里添加参数
     """
@@ -43,7 +43,10 @@ def build_query_trees(df_plans_base_dop, onnx_manager, use_estimates=False): # <
 
         # 1. 创建所有节点 (传递 use_estimates 开关)
         for _, row in group.iterrows():
-            plan_node = PlanNode(row.to_dict(), onnx_manager, use_estimates=use_estimates)
+            # Estimated inputs are complete only after the children are attached.
+            initial_manager = None if use_estimates else onnx_manager
+            plan_node = PlanNode(row.to_dict(), initial_manager, use_estimates=use_estimates)
+            plan_node.onnx_manager = onnx_manager
             query_trees[key].append(plan_node)
             nodes_in_query[plan_node.plan_id] = plan_node
 
@@ -78,21 +81,6 @@ def build_query_trees(df_plans_base_dop, onnx_manager, use_estimates=False): # <
             root_nodes = get_root_nodes(nodes_list)
             for root in root_nodes:
                 update_tree_estimated_inputs(root)
-                # 更新后，还需要重新为整棵树进行一次推理，以使用新的特征
-                # 这是一个简化的处理，实际可能需要更复杂的逻辑
-                # 但由于 get_feature_data 和推理在 PlanNode.__init__ 中，
-                # 我们需要在 update_tree_estimated_inputs 后重新调用它们
-                
-                # 再次遍历树，重新调用推理函数
-                stack = [root]
-                visited = set()
-                while stack:
-                    node = stack.pop()
-                    if node.plan_id in visited: continue
-                    visited.add(node.plan_id)
-                    node.infer_exec_with_onnx()
-                    node.infer_mem_with_onnx()
-                    stack.extend(node.child_plans)
 
     return query_trees
 
@@ -145,6 +133,10 @@ def update_dop_information(df_plans_all_dops, query_trees, onnx_manager, base_do
 
         if not relevant_other_rows: continue
 
+        other_estimates = {
+            (row['query_dop'], row['plan_id']): row['estimate_rows']
+            for row in relevant_other_rows
+        } if base_nodes[0].use_estimates else {}
         used_other_row_indices = set() # 使用索引来跟踪用过的行
 
         num_base_nodes = len(base_nodes)
@@ -178,10 +170,18 @@ def update_dop_information(df_plans_all_dops, query_trees, onnx_manager, base_do
                 # 方式3: 特征匹配 (需要创建临时的 PlanNode 或直接比较 row 数据)
                 # --- 修改：如果需要特征匹配，需要创建临时 other_node ---
                 if not matched:
-                     # 为了特征匹配，临时创建 PlanNode (这会触发预测，但为了匹配逻辑)
+                     # Build comparable features without running a temporary ONNX inference.
                      temp_other_node = None
                      try:
-                         temp_other_node = PlanNode(other_row, onnx_manager) # 传递 Series row
+                         temp_other_node = PlanNode(other_row, None, use_estimates=base_node.use_estimates)
+                         child_plan = other_row['child_plan']
+                         if base_node.use_estimates and pd.notna(child_plan) and str(child_plan).strip():
+                             child_estimates = [
+                                 other_estimates.get((other_query_dop, int(child_id)))
+                                 for child_id in str(child_plan).split(',')
+                             ]
+                             temp_other_node.update_estimated_inputs(child_estimates)
+                             temp_other_node.get_feature_data(temp_other_node.plan_data)
                      except Exception as e_tmp:
                          print(f"特征匹配时创建临时节点出错: {e_tmp}")
 

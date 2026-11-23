@@ -271,7 +271,10 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
                             padg_moo_WL: float = 0.5, padg_moo_WC: float = 0.5,
                             padg_moo_B: int = 20, padg_moo_T: int = 20, padg_moo_K: int = 5,
                             padg_moo_b: int = 4, padg_moo_p: int = 15, padg_moo_lambda_I: float = 0.1,
-                            train_ratio: float = None) -> bool:
+                            train_ratio: float = None,
+                            moo_weight_latency: float = 0.8,
+                            moo_weight_cost: float = 0.2,
+                            use_full_dop_range: bool = False) -> bool:
     """
     Run Pipeline optimization - operator-level parallelism optimization
 
@@ -311,7 +314,9 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
             return False
         
         # Set output path
-        output_json_path = os.path.join(output_paths['optimization_dir'], "pipeline_optimization.json")
+        experiment_dir = os.getenv("PIPER_OPTIMIZATION_OUTPUT_DIR", output_paths['optimization_dir'])
+        os.makedirs(experiment_dir, exist_ok=True)
+        output_json_path = os.path.join(experiment_dir, "pipeline_optimization.json")
         
         # Import ONNX model manager
         from core.onnx_manager import ONNXModelManager
@@ -319,10 +324,10 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
         # Initialize model manager - models from model_dataset
         model_paths = get_model_paths(model_dataset, train_mode, 'pipeline')
         onnx_manager = ONNXModelManager(
-            no_dop_model_dir=model_paths['non_dop_aware_dir'],
-            dop_model_dir=model_paths['dop_aware_dir']
+            no_dop_model_dir=os.getenv("PIPER_NON_DOP_MODEL_DIR", model_paths['non_dop_aware_dir']),
+            dop_model_dir=os.getenv("PIPER_DOP_MODEL_DIR", model_paths['dop_aware_dir']),
         )
-        
+
         # Run optimization
         with Timer("Pipeline operator-level optimization"):
             result = run_dop_optimization(
@@ -335,6 +340,9 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
                 use_continuous_dop=use_continuous_dop,
                 moo_population_size=moo_population_size,
                 moo_generations=moo_generations,
+                moo_weight_latency=moo_weight_latency,
+                moo_weight_cost=moo_weight_cost,
+                use_full_dop_range=use_full_dop_range,
                 use_padg_moo=use_padg_moo,
                 padg_moo_WL=padg_moo_WL,
                 padg_moo_WC=padg_moo_WC,
@@ -347,6 +355,10 @@ def run_pipeline_optimization(dataset: str, train_mode: str,
             )
         
         if result is not None:
+            audits = result['timing_info'].get('nsga2_search_audits')
+            if audits:
+                with open(os.path.join(experiment_dir, 'nsga2_search_audit.json'), 'w') as f:
+                    json.dump(audits, f, indent=2, allow_nan=False)
             print("✅ Pipeline operator-level optimization completed")
             
             # Export to CSV format

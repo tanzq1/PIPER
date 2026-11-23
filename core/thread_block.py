@@ -112,19 +112,28 @@ class ThreadBlock:
             return None
         if len(self.candidate_dops) == 1:
             only = next(iter(self.candidate_dops))
+            pred_time = self.pred_dop_exec_time.get(only, math.inf)
+            if only != 1 and not (math.isfinite(pred_time) and pred_time > 0):
+                raise ValueError(f"Stage {self.thread_id} has no valid prediction for DOP {only}")
             self.optimal_dop = only
-            self.pred_time = self.pred_dop_exec_time.get(only, float('inf'))
+            self.pred_time = pred_time
             self.candidate_optimal_dops = [only]
             return [only]
 
-        # 1. Sort DOPs in ascending order
-        sorted_dops = sorted(self.candidate_dops)
+        # An observed serial DOP can appear in a parallel stage's candidate set.
+        # Start the boundary search at a supported DOP with a usable prediction.
+        sorted_dops = sorted(
+            dop for dop in self.candidate_dops
+            if dop >= 8 and 0 < self.pred_dop_exec_time.get(dop, math.inf) < math.inf
+        )
+        if not sorted_dops:
+            raise ValueError(f"Stage {self.thread_id} has no valid parallel DOP predictions")
 
         # 2. Determine right boundary d_right (performance-based)
         d_right = sorted_dops[0]
         for d in sorted_dops[1:]:
-            t_prev = self.pred_dop_exec_time.get(d_right, float('inf'))
-            t_cur = self.pred_dop_exec_time.get(d, float('inf'))
+            t_prev = self.pred_dop_exec_time[d_right]
+            t_cur = self.pred_dop_exec_time[d]
             # Absolute reduction
             delta = t_prev - t_cur
             if delta < min_reduction_threshold:
@@ -137,9 +146,6 @@ class ThreadBlock:
                 d_right = d
             else:
                 continue
-        if d_right < 8:
-            d_right = 8
-
         # 3. Generate matching intervals for ALL child upload times
         # Now considering DOP mismatch penalties
         matching_intervals = []  # List of (left_bound, right_bound) tuples
@@ -153,13 +159,11 @@ class ThreadBlock:
             # Also consider DOP mismatch penalty if available
             matching_dops = []
             for d in sorted_dops:
-                if d == 1:
-                    continue
                 if d > d_right:  # Don't exceed right boundary
                     break
                     
                 # Get base execution time
-                t = self.pred_dop_exec_time.get(d, float('inf'))
+                t = self.pred_dop_exec_time[d]
                 
                 # Add DOP mismatch penalty if this thread block has children
                 # The penalty was calculated in threading_utils.py
@@ -188,11 +192,7 @@ class ThreadBlock:
             d_left = min(interval[0] for interval in matching_intervals)
         else:
             # If no child constraints, use a default left boundary
-            d_left = sorted_dops[0] if sorted_dops[0] >= 8 else 8
-
-        # Ensure left boundary is reasonable
-        if d_left < 8:
-            d_left = 8
+            d_left = sorted_dops[0]
         
         # 5. Fill all candidates in the interval [d_left, d_right]
         candidates = set()

@@ -37,9 +37,9 @@ python scripts/compare_inference_methods.py
 或者修改脚本中的参数：
 ```python
 # 在脚本末尾修改这些参数
-DATASET = 'tpch'  # 'tpch' 或 'tpcds'
-TRAIN_MODE = 'exact_train'  # 'exact_train' 或 'estimated_train'
-USE_ESTIMATES = False  # True 或 False
+DATASET = 'tpch'
+TRAIN_MODE = 'estimated_train'  # 'exact_train' 或 'estimated_train'
+USE_ESTIMATES = True  # True 或 False
 ```
 
 ### 方法3: 使用测试脚本

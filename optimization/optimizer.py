@@ -13,6 +13,7 @@ from core.onnx_manager import ONNXModelManager # 需要初始化管理器
 from core.plan_node import PlanNode # 虽然不直接创建，但类型提示可能需要
 from core.thread_block import ThreadBlock # 需要调用 choose_optimal_dop
 
+from config.main_config import DOP_SETS
 from config.structure_config import default_dop # 可能需要默认 DOP
 
 # 从同包的其他模块导入函数
@@ -235,6 +236,10 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
 
     use_padg_moo = kwargs.get('use_padg_moo', False)
     use_moo = kwargs.get('use_moo', False)
+    use_full_dop_range = kwargs.get('use_full_dop_range', False)
+    search_audit = {} if use_full_dop_range else None
+    if use_full_dop_range and (use_padg_moo or not use_moo):
+        raise ValueError("Full DOP range requires NSGA-II")
 
     if use_padg_moo:
         print(f"正在使用PADG-MOO优化器为 query {query_id} 选择最优DOP配置...")
@@ -304,6 +309,8 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
                 weight_latency=moo_weight_latency,
                 weight_cost=moo_weight_cost,
                 use_continuous_dop=use_continuous_dop,
+                use_full_dop_range=use_full_dop_range,
+                search_audit=search_audit,
             )
 
             timing_info['per_query_decision_s'][query_id] = moo_execution_time
@@ -314,6 +321,8 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
                 tb.optimal_dop = dop
                 tb.pred_time = tb.pred_dop_exec_time.get(dop)
         except Exception as e:
+            if use_full_dop_range:
+                raise
             print(f"  MOO optimization failed: {e}, falling back to path enumeration")
             use_moo = False
 
@@ -337,6 +346,13 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
                 tb.optimal_dop = dop
                 tb.pred_time = tb.pred_dop_exec_time.get(dop)
 
+    if search_audit is not None:
+        for tid, tb in thread_blocks_for_query.items():
+            low, high = search_audit['variable_bounds'][tid]
+            tb.candidate_dops = {1} if low == high == 1 else {
+                dop for dop in tb.candidate_dops if low <= dop <= high and dop % 2 == 0
+            }
+
     # After MOO/path enumeration, apply child DOP adjustments to reduce
     # redistribution overhead.
     for tid in sorted(thread_blocks_for_query.keys()):
@@ -358,6 +374,17 @@ def _optimize_dop_for_single_query(query_id, base_nodes, timing_info, **kwargs):
         }
         for tid, tb in thread_blocks_for_query.items()
     }
+
+    if search_audit is not None:
+        root_tids = _root_pipeline_thread_ids_from_nodes(base_nodes)
+        search_audit['after_redistribution_stage_dops'] = {
+            tid: int(tb.optimal_dop) for tid, tb in thread_blocks_for_query.items()
+        }
+        search_audit['exported_operator_dops'] = {
+            int(node.plan_id): _operator_export_dop(node, tb.optimal_dop, root_tids)
+            for tb in thread_blocks_for_query.values() for node in tb.nodes
+        }
+        timing_info.setdefault('nsga2_search_audits', {})[query_id] = search_audit
 
     print(f"Query {query_id} 的DOP配置完成")
     return thread_blocks_for_query, final_dops
@@ -394,8 +421,7 @@ def run_dop_optimization(df_plans_all_dops, onnx_manager: ONNXModelManager,
         'avg_query_decision_s': 0,
         'total_optimization_s': 0
     }
-    # 0. 过滤掉 query_dop > 96 的行
-    df_plans_all_dops = df_plans_all_dops[df_plans_all_dops['query_dop'] <= 96]
+    df_plans_all_dops = df_plans_all_dops[df_plans_all_dops['query_dop'] <= max(DOP_SETS)]
     
     # 1. 构建基准查询树 (不变)
     print(f"\n步骤 1: 构建基准查询树 (base_dop={base_dop})...")
@@ -525,9 +551,10 @@ def run_dop_optimization_single_query(df_plans_all_dops,
     """
     query_id_int = int(query_id)
     df_query = df_plans_all_dops[df_plans_all_dops['query_id'].astype(int) == query_id_int]
-    df_query = df_query[df_query['query_dop'] <= 96]
+    max_dop = max(DOP_SETS)
+    df_query = df_query[df_query['query_dop'] <= max_dop]
     if df_query.empty:
-        print(f"错误: 在数据中未找到 query_id={query_id_int} 或 query_dop<=96 的行")
+        print(f"错误: 在数据中未找到 query_id={query_id_int} 或 query_dop<={max_dop} 的行")
         return None
 
     timing_info = {

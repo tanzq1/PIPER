@@ -64,7 +64,9 @@ class PlanNode:
             # Build nodes and other blocking operators are materialized
             self.materialized = 'hash' in op_lower or 'aggregate' in op_lower or 'sort' in op_lower or 'materialize' in op_lower
         self.parent_node = None  # 父节点
-        self.is_parallel = (self.operator_type in parallel_op)
+        self.is_parallel = self.operator_type in parallel_op
+        if os.environ.get("PIPER_PRESERVE_PLAN_SERIAL") == "1" and self.dop == 1:
+            self.is_parallel = False
         self.thread_execution_time = 0
         self.thread_complete_time = 0
         self.local_data_transfer_start_time = 0
@@ -96,18 +98,14 @@ class PlanNode:
         child_node.parent_node = self
         child_node.visit = False  
         
-    def update_estimated_inputs(self):
-        """根据子节点的估计输出，更新本节点的估计输入。"""
-        if not self.use_estimates or not self.child_plans:
+    def update_estimated_inputs(self, child_estimates=None):
+        """Use child output estimates for non-scan input cardinalities."""
+        if not self.use_estimates or 'Scan' in self.operator_type:
             return
-
-        if len(self.child_plans) > 0:
-            # 左子节点的估计输出，成为本节点的左输入估计
-            self.l_input_rows_estimate = self.child_plans[0].estimate_rows
-        
-        if len(self.child_plans) > 1:
-            # 右子节点的估计输出，成为本节点的右输入估计
-            self.r_input_rows_estimate = self.child_plans[1].estimate_rows
+        if child_estimates is None:
+            child_estimates = [child.estimate_rows for child in self.child_plans]
+        self.l_input_rows_estimate = child_estimates[0] if child_estimates else None
+        self.r_input_rows_estimate = child_estimates[1] if len(child_estimates) > 1 else None
 
     def get_feature_data(self, plan_data):
         """
@@ -116,13 +114,17 @@ class PlanNode:
         data_for_features = plan_data.copy()
 
         if self.use_estimates:
-            # 替换 'actual_rows'
+            # Match the estimate-only training inputs while preserving feature names.
             data_for_features['actual_rows'] = self.estimate_rows
-            
-            # 替换 'l_input_rows' 和 'r_input_rows'
-            # 如果此时 self.l_input_rows_estimate 还没被更新，则用原始值或0
-            data_for_features['l_input_rows'] = self.l_input_rows_estimate if self.l_input_rows_estimate is not None else data_for_features.get('l_input_rows', 0)
-            data_for_features['r_input_rows'] = self.r_input_rows_estimate if self.r_input_rows_estimate is not None else data_for_features.get('r_input_rows', 0)
+            data_for_features['l_input_rows'] = (
+                self.estimate_rows if self.l_input_rows_estimate is None else self.l_input_rows_estimate
+            )
+            data_for_features['r_input_rows'] = (
+                0 if self.r_input_rows_estimate is None else self.r_input_rows_estimate
+            )
+            for field in ('hash_table_size', 'disk_ratio', 'agg_groups',
+                          'stream_poll_time', 'stream_data_copy_time'):
+                data_for_features[field] = 0
             
         self.exec_feature_data, self.mem_feature_data = prepare_inference_data(
             data_for_features, 

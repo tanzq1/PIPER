@@ -6,7 +6,6 @@ Control runtime parameters by modifying variables in the file, no command-line a
 
 import sys
 import os
-from tkinter import TRUE
 import torch
 
 # Add parent directory to Python path to enable imports
@@ -25,8 +24,8 @@ def main():
     # Basic configuration
     DATASET = 'tpch'  # Test dataset: 'tpch' or 'tpcds'
     MODEL_DATASET = 'tpch'  # Training model dataset: 'tpch' or 'tpcds' (used to specify which dataset's model to load)
-    TRAIN_MODE = 'exact_train'  # Training mode: 'exact_train' or 'estimated_train'
-    USE_ESTIMATES_MODE = False  # Whether to use estimates
+    TRAIN_MODE = 'estimated_train'  # Training mode: 'exact_train' or 'estimated_train'
+    USE_ESTIMATES_MODE = True  # Whether to use estimates
     
     # Training configuration
     TRAIN_METHOD = 'dop_aware'  # Training method: 'dop_aware=pipeline, train operator that can modify dop', 'non_dop_aware=pipeline, train operator that cannot modify dop', 'ppm=query level', 'query_level', 'mci=stage level'
@@ -46,15 +45,16 @@ def main():
     # MOO optimization configuration (only effective when OPTIMIZATION_ALGORITHM='pipeline')
     USE_MOO = True  # Whether to use Multi-Objective Optimization (MOO) algorithm
     USE_CONTINUOUS_DOP = True  # Whether MOO searches DOP in continuous interval (True=interval search, False=candidate list search)
+    USE_FULL_DOP_RANGE = os.getenv("PIPER_USE_FULL_DOP_RANGE") == "1"
     MOO_POPULATION_SIZE = 30  # MOO population size
     MOO_GENERATIONS = 20  # MOO evolution generations
-    MOO_WEIGHT_LATENCY = 0.7  # Latency weight (Note: throughput matching is reflected through candidate intervals, not as an objective)
-    MOO_WEIGHT_COST = 0.3  # Cost weight
+    MOO_WEIGHT_LATENCY = float(os.getenv("PIPER_MOO_WEIGHT_LATENCY", "1"))  # Latency weight (Note: throughput matching is reflected through candidate intervals, not as an objective)
+    MOO_WEIGHT_COST = float(os.getenv("PIPER_MOO_WEIGHT_COST", "0"))  # Cost weight
     INTERVAL_TOLERANCE = 0.3  # Throughput matching interval tolerance (±30%) - used for choose_optimal_dop
     # PADG-MOO: competitive Top-K expansion + bounded elite pool (takes precedence over USE_MOO when True)
-    USE_PADG_MOO = True  # Whether to use PADG-MOO (segment-aware iterative DOP optimization)
-    PADG_MOO_WL = 0.7  # PADG-MOO latency weight (WL + WC = 1)
-    PADG_MOO_WC = 0.3  # PADG-MOO cost weight
+    USE_PADG_MOO = False  # Whether to use PADG-MOO (segment-aware iterative DOP optimization)
+    PADG_MOO_WL = MOO_WEIGHT_LATENCY  # PADG-MOO latency weight (WL + WC = 1)
+    PADG_MOO_WC = MOO_WEIGHT_COST  # PADG-MOO cost weight
     PADG_MOO_B = 20  # Elite pool capacity
     PADG_MOO_T = 20  # Max rounds
     PADG_MOO_K = 5   # Top-K actions per parent
@@ -63,12 +63,12 @@ def main():
     PADG_MOO_LAMBDA_I = 0.1  # Interference penalty weight I/L
     
     # Runtime control - set which functions to run (True/False)
-    RUN_TRAIN =  True  # Whether to run training
+    RUN_TRAIN =  False  # Whether to run training
     RUN_INFERENCE = False  # Whether to run inference
     RUN_OPTIMIZE = True  # Whether to run optimization
     RUN_EVALUATE = False  # Whether to run evaluation
     RUN_COMPARE = False  # Whether to run comparison analysis
-    RUN_COMPARE_INFERENCE_METHODS = True  # Whether to run inference method comparison
+    RUN_COMPARE_INFERENCE_METHODS = False  # Whether to run inference method comparison
     # =======================================================
     
     # Setup environment
@@ -188,8 +188,11 @@ def main():
                 interval_tolerance=INTERVAL_TOLERANCE,
                 use_moo=USE_MOO,
                 use_continuous_dop=USE_CONTINUOUS_DOP,
+                use_full_dop_range=USE_FULL_DOP_RANGE,
                 moo_population_size=MOO_POPULATION_SIZE,
                 moo_generations=MOO_GENERATIONS,
+                moo_weight_latency=MOO_WEIGHT_LATENCY,
+                moo_weight_cost=MOO_WEIGHT_COST,
                 use_padg_moo=USE_PADG_MOO,
                 padg_moo_WL=PADG_MOO_WL,
                 padg_moo_WC=PADG_MOO_WC,
@@ -224,7 +227,7 @@ def main():
             print("✅ Optimization completed")
         else:
             print("❌ Optimization failed")
-            return
+            raise SystemExit(1)
     
     # Run evaluation
     if RUN_EVALUATE:

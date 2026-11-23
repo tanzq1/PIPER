@@ -104,7 +104,7 @@ OPTIMIZATION_ALGORITHMS = {
 DEFAULT_DOP = 64
 THREAD_COST = 1
 THREAD_MEM = 8194
-DOP_SETS = {8, 16, 32, 64, 96}
+DOP_SETS = set(range(8, 129))
 
 # 特征开关配置
 # Note: This must match the setting used during model training

@@ -1,27 +1,71 @@
-/data
-/mci_logs
-/mci_output
-/data_bak
+# Local environments
+.venv*/
+venv/
+.env
+.env.*
+!.env.example
 
-# Python bytecode and cache files
+# Local datasets and generated artifacts, including nested directories
+data/
+data_bak/
+data_AtlasNode/
+data_collection/
+data_kunpeng/
+data_file/
+input/
+output/
+results/
+models/
+training_runs/
+mci_logs/
+mci_output/
+log/
+logs/
+vendor/
+
+# Model weights, datasets and archives
+*.onnx
+*.pt
+*.pth
+*.pkl
+*.pickle
+*.npy
+*.npz
+*.parquet
+*.csv
+*.jsonl
+*.tbl
+*.dat
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# Compiled artifacts and credentials
+*.so
+*.o
+*.a
+*.pem
+*.key
+
+# Generated figures in the historical tools directory
+/refactored_serverless_tools/
+/refactored_serverless_tools/*.pdf
+/refactored_serverless_tools/*.png
+# Local caches, logs and scratch files
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Local Python environments
-.venv/
-venv/
-env/
-.env
-
-# Test and tooling caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
-htmlcov/
-
-# Runtime logs and local databases
 *.log
 nohup.out
-*.sqlite3
+*.bundle
+/tmp.py
+/log
+/AGENTS.md
+
+# Keep UI source models, not trained weights
+!ui/backend/models/
+!ui/backend/models/*.py

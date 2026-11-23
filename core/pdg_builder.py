@@ -81,7 +81,8 @@ def build_segments_from_bottom_up(all_nodes: List[PlanNode], thread_blocks: Dict
     """
     # #region agent log
     import json
-    log_path = '/home/zhy/opengauss/tools/new_serverless_predictor/.cursor/debug.log'
+    import os
+    log_path = os.environ.get('PIPER_PDG_DEBUG_LOG', '/home/zhy/opengauss/tools/new_serverless_predictor/.cursor/debug.log')
     with open(log_path, 'a') as f:
         f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"padg_builder.py:82","message":"build_segments_from_bottom_up entry","data":{"all_nodes_count":len(all_nodes),"thread_blocks_count":len(thread_blocks)},"timestamp":int(__import__('time').time()*1000)}) + '\n')
     # #endregion
@@ -488,7 +489,8 @@ def convert_stage_dag_to_padg(thread_blocks: Dict[int, ThreadBlock], all_nodes: 
         Top-level Segment for latency calculation
     """
     import json
-    log_path = '/home/zhy/opengauss/tools/new_serverless_predictor/.cursor/debug.log'
+    import os
+    log_path = os.environ.get('PIPER_PDG_DEBUG_LOG', '/home/zhy/opengauss/tools/new_serverless_predictor/.cursor/debug.log')
     top_segment = build_segments_from_bottom_up(all_nodes, thread_blocks)
     # #region agent log
     with open(log_path, 'a') as f:
