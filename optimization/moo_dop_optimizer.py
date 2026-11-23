@@ -54,9 +54,9 @@ def compute_exec_time_from_params(pred_params: Any, dop: int, is_parallel: bool,
         return base_time
     
     try:
-        # Curve formula: exec_time = (b / dop^a) + (d * dop^c) + e
+        # Curve formula: exec_time = (b / dop^a) + (c * dop^d) + e
         a, b, c, d, e = pred_params[0], pred_params[1], pred_params[2], pred_params[3], pred_params[4]
-        exec_time = (b / (dop ** a)) + (d * (dop ** c)) + e
+        exec_time = (b / (dop ** a)) + (c * (dop ** d)) + e
         return max(exec_time, 0.1)  # Ensure positive value
     except Exception:
         # Fallback
