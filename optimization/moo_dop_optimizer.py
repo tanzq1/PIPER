@@ -46,7 +46,7 @@ def compute_exec_time_from_params(pred_params: Any, dop: int, is_parallel: bool,
     """
     Compute execution time at given DOP using curve parameters
     
-    Formula: exec_time = (b / dop^a) + (d * dop^c) + e
+    Formula: exec_time = (b / dop^a) + (c * dop^d) + e
     where pred_params = [a, b, c, d, e]
     """
     if not is_parallel or pred_params is None:
