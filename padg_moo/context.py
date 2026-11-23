@@ -1,6 +1,6 @@
 """
 PADG context: build top_segment, all_segments, stage_to_segs, stage_exec_time, candidate_dops.
-Uses core.padg_builder.convert_stage_dag_to_padg and optimization.moo_dop_optimizer for exec-time curve.
+Uses core.pdg_builder.convert_stage_dag_to_padg and optimization.moo_dop_optimizer for exec-time curve.
 """
 
 import warnings
@@ -27,15 +27,15 @@ def _collect_all_segments(top_segment) -> List[Any]:
 
 
 def _compute_exec_time_from_params(pred_params: Any, dop: int, is_parallel: bool, base_time: float) -> float:
-    """Compute execution time at given DOP. Formula: (b/dop^a) + (d*dop^c) + e. Guards against overflow/NaN."""
+    """Compute execution time at given DOP. Formula: (b/dop^a) + (c*dop^d) + e. Guards against overflow/NaN."""
     if not is_parallel or pred_params is None:
         return base_time
-    dop = max(1, min(int(dop), 2000))  # avoid 0 (division/0**neg) and huge dop (overflow in dop**c)
+    dop = max(1, min(int(dop), 2000))  # avoid 0 (division/0**neg) and huge dop (overflow in dop**d)
     try:
         a, b, c, d, e = pred_params[0], pred_params[1], pred_params[2], pred_params[3], pred_params[4]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            t = (b / (dop ** a)) + (d * (dop ** c)) + e
+            t = (b / (dop ** a)) + (c * (dop ** d)) + e
         if not (t == t and abs(t) != float("inf")):  # NaN or inf
             return base_time if base_time > 0 else 100.0
         return max(float(t), 0.1)
@@ -87,7 +87,7 @@ class PADGContext:
         thread_blocks: dict stage_id -> ThreadBlock (has .nodes, .pred_dop_exec_time, etc.)
         all_nodes: list of PlanNode for the query.
         """
-        from core.padg_builder import convert_stage_dag_to_padg
+        from core.pdg_builder import convert_stage_dag_to_padg
 
         self._thread_blocks = dict(thread_blocks)
         self._all_nodes = list(all_nodes)

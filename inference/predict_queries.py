@@ -17,7 +17,7 @@ from core.plan_node import PlanNode
 from core.onnx_manager import ONNXModelManager
 from core.pipeline_pair import Segment
 from core.thread_block import ThreadBlock
-from core.padg_builder import convert_stage_dag_to_padg, Pipeline
+from core.pdg_builder import convert_stage_dag_to_padg, Pipeline
 from config.structure_config import thread_cost, thread_mem
 # -------------------------
 
